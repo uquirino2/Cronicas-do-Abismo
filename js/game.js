@@ -15,21 +15,11 @@ window.Game8Bit = window.Game8Bit || {};
   const CANVAS_W = D.ROOM_W * TS; // 384
   const CANVAS_H = D.ROOM_H * TS; // 240
   const STORAGE_KEY = 'cronicas_abismo_8bit_v1';
+  const SAVE_PREFIX_RAW = 'CA8B1.';
+  const SAVE_PREFIX_ZIP = 'CA8Z1.';
 
-  const GameEngine = {
-    canvas: null,
-    ctx: null,
-    state: 'title', // 'title', 'playing', 'modal', 'gameover', 'victory'
-    elapsed: 0,
-    hitStop: 0,
-    shake: 0,
-
-    // Temporizador global de armadilhas de espinhos
-    spikeCycle: 0,
-    spikeActive: false,
-
-    // Dados persistentes
-    meta: {
+  function createDefaultMeta() {
+    return {
       souls: 0,
       upgrades: {},
       codexEnemies: {},
@@ -44,7 +34,48 @@ window.Game8Bit = window.Game8Bit || {};
         pixelGrid: false,
         touch: false
       }
-    },
+    };
+  }
+
+  function bytesToBase64Url(bytes) {
+    let bin = '';
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  function base64UrlToBytes(b64) {
+    const clean = String(b64).replace(/-/g, '+').replace(/_/g, '/').replace(/\s+/g, '');
+    const pad = clean.length % 4 ? '='.repeat(4 - (clean.length % 4)) : '';
+    const bin = atob(clean + pad);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  }
+
+  async function transformBytes(bytes, streamInstance) {
+    const stream = new Blob([bytes]).stream().pipeThrough(streamInstance);
+    const buf = await new Response(stream).arrayBuffer();
+    return new Uint8Array(buf);
+  }
+
+  const GameEngine = {
+    canvas: null,
+    ctx: null,
+    state: 'title', // 'title', 'playing', 'modal', 'gameover', 'victory'
+    elapsed: 0,
+    hitStop: 0,
+    shake: 0,
+
+    // Temporizador global de armadilhas de espinhos
+    spikeCycle: 0,
+    spikeActive: false,
+
+    // Dados persistentes
+    meta: createDefaultMeta(),
+    _lastImportBackup: null,
 
     // Estado da partida atual
     rng: null,
@@ -91,13 +122,51 @@ window.Game8Bit = window.Game8Bit || {};
       G.UI.init(this);
     },
 
+    normalizeMeta(raw) {
+      const def = createDefaultMeta();
+      const src = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+      const toInt = (val, fallback, min = 0) => {
+        const n = Number(val);
+        return Number.isFinite(n) ? Math.max(min, Math.floor(n)) : fallback;
+      };
+      const out = {
+        souls: toInt(src.souls, def.souls, 0),
+        upgrades: {},
+        codexEnemies: {},
+        runs: toInt(src.runs, def.runs, 0),
+        wins: toInt(src.wins, def.wins, 0),
+        bestFloor: toInt(src.bestFloor, def.bestFloor, 1),
+        settings: Object.assign({}, def.settings)
+      };
+      if (src.upgrades && typeof src.upgrades === 'object') {
+        for (const [k, v] of Object.entries(src.upgrades)) {
+          const n = Number(v);
+          if (Number.isFinite(n) && n >= 0) out.upgrades[k] = Math.floor(n);
+        }
+      }
+      if (src.codexEnemies && typeof src.codexEnemies === 'object') {
+        for (const [k, v] of Object.entries(src.codexEnemies)) {
+          const n = Number(v);
+          if (Number.isFinite(n) && n >= 0) out.codexEnemies[k] = Math.floor(n);
+        }
+      }
+      if (src.settings && typeof src.settings === 'object') {
+        const st = src.settings;
+        if (Number.isFinite(Number(st.musicVolume))) out.settings.musicVolume = U.clamp(Number(st.musicVolume), 0, 1);
+        if (Number.isFinite(Number(st.sfxVolume))) out.settings.sfxVolume = U.clamp(Number(st.sfxVolume), 0, 1);
+        if (typeof st.muted === 'boolean') out.settings.muted = st.muted;
+        if (typeof st.crt === 'boolean') out.settings.crt = st.crt;
+        if (typeof st.pixelGrid === 'boolean') out.settings.pixelGrid = st.pixelGrid;
+        if (typeof st.touch === 'boolean') out.settings.touch = st.touch;
+      }
+      return out;
+    },
+
     loadMeta() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
-          const parsed = JSON.parse(raw);
-          this.meta = Object.assign({}, this.meta, parsed);
-          this.meta.settings = Object.assign({}, this.meta.settings, parsed.settings || {});
+          this.meta = this.normalizeMeta(JSON.parse(raw));
         }
       } catch (e) {
         // Ignora erro de storage bloqueado
@@ -118,44 +187,65 @@ window.Game8Bit = window.Game8Bit || {};
       }
     },
 
-    saveActiveRun() {
-      if (!this.player || !this.dungeon) return false;
+    buildActiveRunSnapshot() {
+      if (!this.player || !this.dungeon || !this.currentRoom) return null;
+      return {
+        seed: this.seed,
+        difficultyId: this.difficulty.id,
+        floor: this.floor,
+        currentRoomId: this.currentRoom.id,
+        dungeon: this.dungeon,
+        stats: this.stats,
+        player: {
+          classId: this.player.classId,
+          x: this.player.x,
+          y: this.player.y,
+          hp: this.player.hp,
+          mp: this.player.mp,
+          stamina: this.player.stamina,
+          level: this.player.level,
+          xp: this.player.xp,
+          xpNext: this.player.xpNext,
+          bonusMaxHp: this.player.bonusMaxHp,
+          bonusMaxMp: this.player.bonusMaxMp,
+          bonusAtk: this.player.bonusAtk,
+          bonusMag: this.player.bonusMag,
+          bonusCrit: this.player.bonusCrit,
+          gold: this.player.gold,
+          keys: this.player.keys,
+          bombs: this.player.bombs,
+          hasBossKey: this.player.hasBossKey,
+          soulsEarned: this.player.soulsEarned,
+          shards: this.player.shards,
+          equip: this.player.equip,
+          inventory: this.player.inventory,
+          perks: this.player.perks,
+          blessings: this.player.blessings,
+          revivedThisFloor: this.player.revivedThisFloor
+        }
+      };
+    },
+
+    getSavedRunSnapshot() {
       try {
-        const snap = {
-          seed: this.seed,
-          difficultyId: this.difficulty.id,
-          floor: this.floor,
-          currentRoomId: this.currentRoom.id,
-          dungeon: this.dungeon,
-          stats: this.stats,
-          player: {
-            classId: this.player.classId,
-            x: this.player.x,
-            y: this.player.y,
-            hp: this.player.hp,
-            mp: this.player.mp,
-            stamina: this.player.stamina,
-            level: this.player.level,
-            xp: this.player.xp,
-            xpNext: this.player.xpNext,
-            bonusMaxHp: this.player.bonusMaxHp,
-            bonusMaxMp: this.player.bonusMaxMp,
-            bonusAtk: this.player.bonusAtk,
-            bonusMag: this.player.bonusMag,
-            bonusCrit: this.player.bonusCrit,
-            gold: this.player.gold,
-            keys: this.player.keys,
-            bombs: this.player.bombs,
-            hasBossKey: this.player.hasBossKey,
-            soulsEarned: this.player.soulsEarned,
-            shards: this.player.shards,
-            equip: this.player.equip,
-            inventory: this.player.inventory,
-            perks: this.player.perks,
-            blessings: this.player.blessings,
-            revivedThisFloor: this.player.revivedThisFloor
-          }
-        };
+        const raw = localStorage.getItem(STORAGE_KEY + '_run');
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) {
+        return null;
+      }
+    },
+
+    getExportableRunSnapshot() {
+      if (this.player && this.dungeon && this.state !== 'title' && this.state !== 'gameover' && this.state !== 'victory') {
+        return this.buildActiveRunSnapshot();
+      }
+      return this.getSavedRunSnapshot();
+    },
+
+    saveActiveRun() {
+      const snap = this.buildActiveRunSnapshot();
+      if (!snap) return false;
+      try {
         localStorage.setItem(STORAGE_KEY + '_run', JSON.stringify(snap));
         return true;
       } catch (e) {
@@ -165,17 +255,25 @@ window.Game8Bit = window.Game8Bit || {};
 
     loadActiveRun() {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY + '_run');
-        if (!raw) return false;
-        const snap = JSON.parse(raw);
-        this.seed = snap.seed;
+        const snap = this.getSavedRunSnapshot();
+        if (!snap || !snap.dungeon?.rooms?.[snap.currentRoomId] || !G.GameData.CLASSES[snap.player?.classId]) {
+          return false;
+        }
+        this.seed = String(snap.seed || G.randomSeedString());
         this.rng = G.createRNG(this.seed + ':' + snap.floor);
         this.difficulty = G.GameData.DIFFICULTIES[snap.difficultyId] || G.GameData.DIFFICULTIES.normal;
         this.floor = snap.floor;
         this.dungeon = snap.dungeon;
-        this.stats = snap.stats;
-        this.player = this._createPlayerObj(snap.player.classId);
-        Object.assign(this.player, snap.player);
+        this.stats = snap.stats || { kills: 0, bosses: 0, roomsCleared: 0, itemsFound: 0, time: 0 };
+
+        const basePlayer = this._createPlayerObj(snap.player.classId);
+        const savedShards = snap.player.shards || {};
+        const savedPerks = snap.player.perks || {};
+        this.player = Object.assign(basePlayer, snap.player, {
+          shards: Object.assign({}, basePlayer.shards, savedShards),
+          perks: Object.assign({}, basePlayer.perks, savedPerks),
+          equip: Object.assign({}, basePlayer.equip, snap.player.equip || {})
+        });
         this.currentRoom = this.dungeon.rooms[snap.currentRoomId];
         this.projectiles = [];
         this.particles = [];
@@ -183,6 +281,7 @@ window.Game8Bit = window.Game8Bit || {};
         this.hazards = [];
         this.drops = [];
         this.bombs = [];
+        this.keys = {};
         this.state = 'playing';
         G.AudioEngine.unlock();
         G.AudioEngine.playMusic(this.currentRoom.biome.music);
@@ -198,6 +297,192 @@ window.Game8Bit = window.Game8Bit || {};
       try {
         localStorage.removeItem(STORAGE_KEY + '_run');
       } catch (e) {}
+    },
+
+    buildSavePackage(includeRun = true) {
+      const activeRun = includeRun ? this.getExportableRunSnapshot() : null;
+      return {
+        app: 'CronicasDoAbismo8Bit',
+        v: 1,
+        exportedAt: new Date().toISOString(),
+        meta: this.normalizeMeta(this.meta),
+        activeRun
+      };
+    },
+
+    validateSavePackage(obj) {
+      if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+        throw new Error('Conteúdo inválido: esperado um objeto de save.');
+      }
+      if (obj.app && obj.app !== 'CronicasDoAbismo8Bit') {
+        throw new Error('Este save não pertence a Crônicas do Abismo 8-Bit.');
+      }
+      const m = obj.meta;
+      if (!m || typeof m !== 'object' || Array.isArray(m) || !('souls' in m || 'upgrades' in m || 'settings' in m || 'bestFloor' in m)) {
+        throw new Error('Dados de progresso permanente ausentes ou corrompidos.');
+      }
+      let activeRun = null;
+      if (obj.activeRun) {
+        const r = obj.activeRun;
+        if (
+          typeof r !== 'object' ||
+          !r.dungeon?.rooms?.[r.currentRoomId] ||
+          !G.GameData.CLASSES[r.player?.classId] ||
+          !Number.isFinite(Number(r.floor)) ||
+          Number(r.floor) < 1
+        ) {
+          throw new Error('Partida em andamento dentro do save está corrompida ou incompatível.');
+        }
+        activeRun = r;
+      }
+      return {
+        app: 'CronicasDoAbismo8Bit',
+        v: 1,
+        exportedAt: typeof obj.exportedAt === 'string' ? obj.exportedAt : null,
+        meta: this.normalizeMeta(m),
+        activeRun
+      };
+    },
+
+    async encodeSaveCode(includeRun = true) {
+      const json = JSON.stringify(this.buildSavePackage(includeRun));
+      const utf8 = new TextEncoder().encode(json);
+      if (typeof CompressionStream === 'function') {
+        try {
+          const zipped = await transformBytes(utf8, new CompressionStream('deflate-raw'));
+          return SAVE_PREFIX_ZIP + bytesToBase64Url(zipped);
+        } catch (e) {
+          // Fallback sem compressão caso deflate-raw não esteja disponível
+        }
+      }
+      return SAVE_PREFIX_RAW + bytesToBase64Url(utf8);
+    },
+
+    async decodeSaveInput(rawInput) {
+      let text = String(rawInput || '').trim();
+      if (!text) throw new Error('Cole um código, JSON ou link mágico antes de importar.');
+
+      const hashMatch = text.match(/(?:^|[#?&])save=([^&\s]+)/i);
+      if (hashMatch) {
+        try {
+          text = decodeURIComponent(hashMatch[1]).trim();
+        } catch (e) {
+          text = hashMatch[1].trim();
+        }
+      }
+
+      let parsed;
+      if (text.startsWith('{')) {
+        try {
+          parsed = JSON.parse(text);
+        } catch (e) {
+          throw new Error('JSON malformado. Verifique se o texto não foi cortado.');
+        }
+      } else if (text.startsWith(SAVE_PREFIX_ZIP)) {
+        if (typeof DecompressionStream !== 'function') {
+          throw new Error('Seu navegador não suporta descompressão de código compacto; importe o arquivo .json.');
+        }
+        try {
+          const compressed = base64UrlToBytes(text.slice(SAVE_PREFIX_ZIP.length));
+          const rawBytes = await transformBytes(compressed, new DecompressionStream('deflate-raw'));
+          parsed = JSON.parse(new TextDecoder().decode(rawBytes));
+        } catch (e) {
+          throw new Error('Código de save compacto inválido ou incompleto.');
+        }
+      } else if (text.startsWith(SAVE_PREFIX_RAW)) {
+        try {
+          const rawBytes = base64UrlToBytes(text.slice(SAVE_PREFIX_RAW.length));
+          parsed = JSON.parse(new TextDecoder().decode(rawBytes));
+        } catch (e) {
+          throw new Error('Código de save inválido ou incompleto.');
+        }
+      } else {
+        throw new Error('Formato não reconhecido. Use arquivo .json, código CA8Z1.../CA8B1... ou link #save=');
+      }
+
+      return this.validateSavePackage(parsed);
+    },
+
+    async buildMagicSaveUrl(includeRun = true) {
+      const code = await this.encodeSaveCode(includeRun);
+      const base = window.location.href.split('#')[0];
+      return `${base}#save=${code}`;
+    },
+
+    extractMagicHashCode() {
+      const h = window.location.hash || '';
+      const m = h.match(/(?:^|[#&])save=([^&]+)/i);
+      if (!m) return null;
+      try {
+        return decodeURIComponent(m[1]).trim();
+      } catch (e) {
+        return m[1].trim();
+      }
+    },
+
+    clearMagicSaveHash() {
+      if (!window.location.hash || !/save=/i.test(window.location.hash)) return;
+      try {
+        if (window.history && typeof window.history.replaceState === 'function') {
+          const cleanUrl = window.location.pathname + window.location.search;
+          window.history.replaceState(null, '', cleanUrl || window.location.href.split('#')[0]);
+          return;
+        }
+      } catch (e) {}
+      window.location.hash = '';
+    },
+
+    captureLocalBackup() {
+      let activeRunRaw = null;
+      try {
+        activeRunRaw = localStorage.getItem(STORAGE_KEY + '_run');
+      } catch (e) {}
+      return {
+        meta: JSON.parse(JSON.stringify(this.meta)),
+        activeRunRaw
+      };
+    },
+
+    applySavePackage(pkg) {
+      const validPkg = this.validateSavePackage(pkg);
+      this._lastImportBackup = this.captureLocalBackup();
+      this.meta = this.normalizeMeta(validPkg.meta);
+      this.saveMeta();
+      G.AudioEngine.setSettings(this.meta.settings);
+      if (G.UI && G.UI._applyVisualSettings) G.UI._applyVisualSettings();
+
+      try {
+        if (validPkg.activeRun) {
+          localStorage.setItem(STORAGE_KEY + '_run', JSON.stringify(validPkg.activeRun));
+        } else {
+          localStorage.removeItem(STORAGE_KEY + '_run');
+        }
+      } catch (e) {}
+
+      this.clearMagicSaveHash();
+      return {
+        souls: this.meta.souls,
+        bestFloor: this.meta.bestFloor,
+        wins: this.meta.wins,
+        hasRun: !!validPkg.activeRun,
+        runClass: validPkg.activeRun ? G.GameData.CLASSES[validPkg.activeRun.player.classId]?.name : null,
+        runFloor: validPkg.activeRun ? validPkg.activeRun.floor : null
+      };
+    },
+
+    restoreLocalBackup() {
+      const bk = this._lastImportBackup;
+      if (!bk) return false;
+      this.meta = this.normalizeMeta(bk.meta);
+      this.saveMeta();
+      G.AudioEngine.setSettings(this.meta.settings);
+      if (G.UI && G.UI._applyVisualSettings) G.UI._applyVisualSettings();
+      try {
+        if (bk.activeRunRaw) localStorage.setItem(STORAGE_KEY + '_run', bk.activeRunRaw);
+        else localStorage.removeItem(STORAGE_KEY + '_run');
+      } catch (e) {}
+      this._lastImportBackup = null;
+      return true;
     },
 
     _createPlayerObj(classId) {
@@ -1486,12 +1771,21 @@ window.Game8Bit = window.Game8Bit || {};
     _bindInputs() {
       window.addEventListener('keydown', (e) => {
         G.AudioEngine.unlock();
+        const tag = e.target && e.target.tagName ? e.target.tagName.toUpperCase() : '';
+        const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || !!(e.target && e.target.isContentEditable);
+
+        if (e.code === 'Escape') {
+          G.UI.togglePause();
+          return;
+        }
+        if (isTyping) return;
+
         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Tab'].includes(e.code)) {
           if (this.state === 'playing') e.preventDefault();
         }
         this.keys[e.code] = true;
 
-        if (e.code === 'Escape' || e.code === 'KeyP') {
+        if (e.code === 'KeyP') {
           G.UI.togglePause();
           return;
         }

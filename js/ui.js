@@ -19,6 +19,12 @@ window.Game8Bit = window.Game8Bit || {};
     blessingCallback: null,
     blessingTitle: 'BÊNÇÃO ANCESTRAL',
     codexTab: 'chemistry',
+    saveTab: 'export',
+    saveIncludeRun: true,
+    saveStatus: null,
+    magicPendingPkg: null,
+    _openedSaveFromPause: false,
+    _pendingReloadFromSave: false,
     dirty: true,
     _lastHudTick: 0,
 
@@ -28,6 +34,8 @@ window.Game8Bit = window.Game8Bit || {};
       this._bindTitleEvents();
       this._bindHudEvents();
       this._renderTitleScreen();
+      window.addEventListener('hashchange', () => this._checkMagicSaveUrl());
+      this._checkMagicSaveUrl();
     },
 
     _applyVisualSettings() {
@@ -73,6 +81,18 @@ window.Game8Bit = window.Game8Bit || {};
         G.AudioEngine.unlock();
         G.AudioEngine.playSFX('uiConfirm');
         this.openModal('codex');
+      });
+
+      document.getElementById('btn-export-save-title').addEventListener('click', () => {
+        G.AudioEngine.unlock();
+        G.AudioEngine.playSFX('uiConfirm');
+        this.openSaveModal('export', false);
+      });
+
+      document.getElementById('btn-import-save-title').addEventListener('click', () => {
+        G.AudioEngine.unlock();
+        G.AudioEngine.playSFX('uiConfirm');
+        this.openSaveModal('import', false);
       });
     },
 
@@ -349,6 +369,13 @@ window.Game8Bit = window.Game8Bit || {};
       }
     },
 
+    openSaveModal(tab = 'export', fromPause = false) {
+      this.saveTab = tab;
+      this.saveStatus = null;
+      this._openedSaveFromPause = !!fromPause;
+      this.openModal('save');
+    },
+
     openModal(name) {
       this.activeModal = name;
       if (this.game.state === 'playing') this.game.state = 'modal';
@@ -378,13 +405,37 @@ window.Game8Bit = window.Game8Bit || {};
       } else if (name === 'pause') {
         titleEl.textContent = 'PAUSA & CONFIGURAÇÕES';
         this._renderPauseModal(bodyEl);
+      } else if (name === 'save') {
+        titleEl.textContent = 'EXPORTAR & IMPORTAR SAVE';
+        this._renderSaveModal(bodyEl);
       }
     },
 
     closeAllModals() {
+      const prevModal = this.activeModal;
       document.getElementById('modal-overlay').classList.add('hidden');
       this.activeModal = null;
+      const shouldReloadImportedRun = prevModal === 'save' && this._pendingReloadFromSave;
+      this._pendingReloadFromSave = false;
+      this._openedSaveFromPause = false;
+
+      if (shouldReloadImportedRun) {
+        if (this.game.state === 'title') {
+          this._renderTitleScreen();
+        } else if (this.game.hasSavedRun() && this.game.loadActiveRun()) {
+          return;
+        } else {
+          this.game.player = null;
+          this.game.dungeon = null;
+          this.game.state = 'title';
+          G.AudioEngine.playMusic('title');
+          this._renderTitleScreen();
+        }
+        return;
+      }
+
       if (this.game.state === 'modal') this.game.state = 'playing';
+      if (this.game.state === 'title') this._renderTitleScreen();
       this.dirty = true;
     },
 
@@ -865,6 +916,10 @@ window.Game8Bit = window.Game8Bit || {};
             <button type="button" id="btn-pause-resume" class="pixel-btn primary">CONTINUAR</button>
             <button type="button" id="btn-pause-savequit" class="pixel-btn">SALVAR E SAIR AO TÍTULO</button>
           </div>
+          <div class="pause-actions">
+            <button type="button" id="btn-pause-export" class="pixel-btn sm">EXPORTAR SAVE</button>
+            <button type="button" id="btn-pause-import" class="pixel-btn sm">IMPORTAR SAVE</button>
+          </div>
         </div>
       `;
 
@@ -901,6 +956,373 @@ window.Game8Bit = window.Game8Bit || {};
         G.AudioEngine.playMusic('title');
         this._renderTitleScreen();
       });
+      document.getElementById('btn-pause-export').addEventListener('click', () => {
+        G.AudioEngine.playSFX('uiConfirm');
+        this.openSaveModal('export', true);
+      });
+      document.getElementById('btn-pause-import').addEventListener('click', () => {
+        G.AudioEngine.playSFX('uiConfirm');
+        this.openSaveModal('import', true);
+      });
+    },
+
+    // --- PORTABILIDADE DE SAVE (.JSON, CÓDIGO & LINK MÁGICO) ---
+    _escHtml(str) {
+      return String(str ?? '').replace(/[&<>"']/g, (ch) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[ch]));
+    },
+
+    _formatSaveSummary(pkg) {
+      const m = pkg.meta || {};
+      const run = pkg.activeRun;
+      const clsName = run ? (G.GameData.CLASSES[run.player?.classId]?.name || run.player?.classId || 'Herói') : null;
+      const runText = run
+        ? `Sim (${this._escHtml(clsName)} • Andar ${Number(run.floor) || 1})`
+        : 'Nenhuma';
+      const dateStr = pkg.exportedAt ? new Date(pkg.exportedAt).toLocaleString('pt-BR') : 'Não informada';
+      return {
+        souls: Number(m.souls) || 0,
+        bestFloor: Number(m.bestFloor) || 1,
+        wins: Number(m.wins) || 0,
+        runText,
+        dateText: this._escHtml(dateStr)
+      };
+    },
+
+    async _copyText(text, fallbackInputEl, btnEl, defaultLabel) {
+      let copied = false;
+      try {
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+          await navigator.clipboard.writeText(text);
+          copied = true;
+        }
+      } catch (e) {}
+
+      if (!copied && fallbackInputEl) {
+        try {
+          fallbackInputEl.focus();
+          fallbackInputEl.select();
+          if (typeof fallbackInputEl.setSelectionRange === 'function') {
+            fallbackInputEl.setSelectionRange(0, text.length);
+          }
+          copied = document.execCommand('copy');
+        } catch (e) {}
+      }
+
+      if (btnEl) {
+        btnEl.textContent = copied ? 'COPIADO!' : 'SELECIONADO (CTRL+C)';
+        setTimeout(() => {
+          if (btnEl.isConnected) btnEl.textContent = defaultLabel;
+        }, 1800);
+      }
+      return copied;
+    },
+
+    async _checkMagicSaveUrl() {
+      const code = this.game.extractMagicHashCode();
+      if (!code) return;
+      try {
+        const pkg = await this.game.decodeSaveInput(code);
+        this.magicPendingPkg = pkg;
+        this.saveTab = 'import';
+        this.saveStatus = null;
+        this._openedSaveFromPause = this.game.state !== 'title';
+        this.openModal('save');
+      } catch (err) {
+        this.magicPendingPkg = null;
+        this.saveTab = 'import';
+        this.saveStatus = { type: 'err', msg: err.message || 'Link mágico inválido.' };
+        this._openedSaveFromPause = this.game.state !== 'title';
+        this.openModal('save');
+      }
+    },
+
+    _applyImportedSave(pkg, sourceLabel) {
+      const wasInRun = this.game.state !== 'title';
+      const info = this.game.applySavePackage(pkg);
+      this.magicPendingPkg = null;
+      this._pendingReloadFromSave = wasInRun;
+      if (this.game.state === 'title') {
+        this._renderTitleScreen();
+      }
+      const runDesc = info.hasRun ? ` Partida salva: ${this._escHtml(info.runClass)} (Andar ${info.runFloor}).` : ' Sem partida em andamento.';
+      this.saveStatus = {
+        type: 'ok',
+        msg: `Save importado via ${this._escHtml(sourceLabel)}! Almas: ${info.souls} | Melhor Andar: ${info.bestFloor} | Vitórias: ${info.wins}.${runDesc}`,
+        hasRun: info.hasRun,
+        showImportActions: true
+      };
+      G.AudioEngine.playSFX('levelUp');
+      const bodyEl = document.getElementById('modal-body');
+      if (this.activeModal === 'save' && bodyEl) {
+        this._renderSaveModal(bodyEl);
+      }
+    },
+
+    _renderSaveModal(root) {
+      this._saveRenderSeq = (this._saveRenderSeq || 0) + 1;
+      const renderSeq = this._saveRenderSeq;
+
+      const meta = this.game.meta;
+      const exportRun = this.game.getExportableRunSnapshot();
+      const hasExportRun = !!exportRun;
+      if (!hasExportRun) this.saveIncludeRun = false;
+
+      const runLabel = hasExportRun
+        ? `Incluir partida atual (${this._escHtml(G.GameData.CLASSES[exportRun.player.classId]?.name || exportRun.player.classId)} • Andar ${exportRun.floor})`
+        : 'Nenhuma partida em andamento no momento';
+
+      const statusHtml = this.saveStatus ? `
+        <div class="save-status ${this.saveStatus.type}">
+          <div>${this.saveStatus.msg}</div>
+          ${this.saveStatus.showImportActions ? `
+            <div class="save-row">
+              ${this.saveStatus.hasRun ? '<button type="button" id="btn-save-play-now" class="pixel-btn primary sm">CONTINUAR PARTIDA AGORA</button>' : ''}
+              ${this.game._lastImportBackup ? '<button type="button" id="btn-save-undo" class="pixel-btn warn sm">DESFAZER IMPORTAÇÃO</button>' : ''}
+            </div>
+          ` : ''}
+        </div>
+      ` : '';
+
+      let previewHtml = '';
+      if (this.magicPendingPkg) {
+        const sum = this._formatSaveSummary(this.magicPendingPkg);
+        previewHtml = `
+          <div class="save-box save-preview">
+            <h4>LINK MÁGICO DETECTADO — CONFIRMAR CARREGAMENTO?</h4>
+            <div class="save-meta-line">
+              <span>Almas Ancestrais: <b>${sum.souls}</b></span>
+              <span>Melhor Andar: <b>${sum.bestFloor}</b></span>
+              <span>Vitórias: <b>${sum.wins}</b></span>
+            </div>
+            <div class="save-meta-line">
+              <span>Partida em andamento: <b>${sum.runText}</b></span>
+              <span>Exportado em: <b>${sum.dateText}</b></span>
+            </div>
+            <p class="save-hint">Confirmar substituirá o save salvo neste navegador (você poderá desfazer enquanto esta janela estiver aberta).</p>
+            <div class="save-row">
+              <button type="button" id="btn-confirm-magic" class="pixel-btn primary">CONFIRMAR E CARREGAR SAVE</button>
+              <button type="button" id="btn-discard-magic" class="pixel-btn">DESCARTAR LINK</button>
+            </div>
+          </div>
+        `;
+      }
+
+      const tabHtml = this.saveTab === 'export' ? `
+        <div class="save-box">
+          <div class="save-meta-line">
+            <span>Almas: <b>${meta.souls}</b></span>
+            <span>Melhor Andar: <b>${meta.bestFloor}</b></span>
+            <span>Vitórias: <b>${meta.wins}</b></span>
+          </div>
+          <label class="chk chk-inline ${hasExportRun ? '' : 'muted'}">
+            <input type="checkbox" id="chk-export-run" ${this.saveIncludeRun && hasExportRun ? 'checked' : ''} ${hasExportRun ? '' : 'disabled'}>
+            <span>${runLabel}</span>
+          </label>
+        </div>
+
+        <div class="save-box">
+          <h4>1. ARQUIVO DE BACKUP (.JSON)</h4>
+          <p class="save-hint">Baixe um arquivo para guardar ou enviar para outro computador/celular.</p>
+          <div class="save-row">
+            <button type="button" id="btn-download-json" class="pixel-btn primary">BAIXAR ARQUIVO .JSON</button>
+          </div>
+        </div>
+
+        <div class="save-box">
+          <h4>2. CÓDIGO COPIÁVEL <small id="export-code-len" class="muted"></small></h4>
+          <textarea id="export-code-box" class="save-textarea" rows="3" readonly>Gerando código...</textarea>
+          <div class="save-row">
+            <button type="button" id="btn-copy-code" class="pixel-btn">COPIAR CÓDIGO</button>
+          </div>
+        </div>
+
+        <div class="save-box">
+          <h4>3. LINK MÁGICO (ABRA EM OUTRO NAVEGADOR OU CELULAR)</h4>
+          <input id="export-link-box" type="text" class="save-input" readonly value="Gerando link mágico...">
+          <div class="save-row">
+            <button type="button" id="btn-copy-link" class="pixel-btn">COPIAR LINK MÁGICO</button>
+          </div>
+        </div>
+      ` : `
+        ${previewHtml}
+        <div class="save-box">
+          <h4>1. IMPORTAR ARQUIVO .JSON</h4>
+          <p class="save-hint">Selecione um arquivo .json exportado anteriormente do Crônicas do Abismo.</p>
+          <div class="save-row">
+            <input id="input-import-file" type="file" accept=".json,.txt,application/json" class="save-file-input">
+          </div>
+        </div>
+
+        <div class="save-box">
+          <h4>2. COLAR CÓDIGO, JSON OU LINK MÁGICO</h4>
+          <textarea id="input-import-code" class="save-textarea" rows="4" placeholder="Cole aqui o código CA8Z1..., o conteúdo do JSON ou a URL com #save=..."></textarea>
+          <div class="save-row">
+            <button type="button" id="btn-apply-import-code" class="pixel-btn primary">IMPORTAR CÓDIGO / LINK</button>
+          </div>
+        </div>
+      `;
+
+      root.innerHTML = `
+        <div class="save-modal">
+          <div class="tab-bar">
+            <button type="button" class="pixel-btn ${this.saveTab === 'export' ? 'selected' : ''}" data-savetab="export">EXPORTAR SAVE</button>
+            <button type="button" class="pixel-btn ${this.saveTab === 'import' ? 'selected' : ''}" data-savetab="import">IMPORTAR SAVE</button>
+            ${this._openedSaveFromPause && !this._pendingReloadFromSave ? '<button type="button" id="btn-save-back-pause" class="pixel-btn sm" style="margin-left:auto">VOLTAR À PAUSA</button>' : ''}
+          </div>
+          ${statusHtml}
+          ${tabHtml}
+        </div>
+      `;
+
+      root.querySelectorAll('[data-savetab]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          G.AudioEngine.playSFX('uiMove');
+          this.saveTab = btn.getAttribute('data-savetab');
+          this._renderSaveModal(root);
+        });
+      });
+
+      const backPauseBtn = document.getElementById('btn-save-back-pause');
+      if (backPauseBtn) {
+        backPauseBtn.addEventListener('click', () => this.openModal('pause'));
+      }
+
+      const playNowBtn = document.getElementById('btn-save-play-now');
+      if (playNowBtn) {
+        playNowBtn.addEventListener('click', () => {
+          G.AudioEngine.unlock();
+          G.AudioEngine.playSFX('uiConfirm');
+          this._pendingReloadFromSave = false;
+          this._openedSaveFromPause = false;
+          if (!this.game.loadActiveRun()) {
+            this.saveStatus = { type: 'err', msg: 'Não foi possível iniciar a partida importada.' };
+            this._renderSaveModal(root);
+          }
+        });
+      }
+
+      const undoBtn = document.getElementById('btn-save-undo');
+      if (undoBtn) {
+        undoBtn.addEventListener('click', () => {
+          G.AudioEngine.playSFX('uiMove');
+          if (this.game.restoreLocalBackup()) {
+            this._pendingReloadFromSave = false;
+            if (this.game.state === 'title') this._renderTitleScreen();
+            this.saveStatus = { type: 'ok', msg: 'Importação desfeita. Progresso anterior restaurado!' };
+            this._renderSaveModal(root);
+          }
+        });
+      }
+
+      if (this.saveTab === 'export') {
+        const chkRun = document.getElementById('chk-export-run');
+        const codeBox = document.getElementById('export-code-box');
+        const linkBox = document.getElementById('export-link-box');
+        const lenEl = document.getElementById('export-code-len');
+
+        const refreshExportStrings = async () => {
+          const includeRun = !!(chkRun && !chkRun.disabled && chkRun.checked);
+          this.saveIncludeRun = includeRun;
+          const code = await this.game.encodeSaveCode(includeRun);
+          const link = await this.game.buildMagicSaveUrl(includeRun);
+          if (!codeBox.isConnected || this._saveRenderSeq !== renderSeq) return;
+          codeBox.value = code;
+          linkBox.value = link;
+          if (lenEl) lenEl.textContent = `(${code.length} caracteres)`;
+        };
+
+        if (chkRun) {
+          chkRun.addEventListener('change', () => {
+            G.AudioEngine.playSFX('uiMove');
+            refreshExportStrings();
+          });
+        }
+        refreshExportStrings();
+
+        document.getElementById('btn-download-json').addEventListener('click', () => {
+          G.AudioEngine.playSFX('uiConfirm');
+          const includeRun = !!(chkRun && !chkRun.disabled && chkRun.checked);
+          const pkg = this.game.buildSavePackage(includeRun);
+          const json = JSON.stringify(pkg, null, 2);
+          const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `cronicas-abismo-save-${new Date().toISOString().slice(0, 10)}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          this.saveStatus = { type: 'ok', msg: 'Arquivo .json gerado e baixado!' };
+          this._renderSaveModal(root);
+        });
+
+        const copyCodeBtn = document.getElementById('btn-copy-code');
+        copyCodeBtn.addEventListener('click', () => {
+          G.AudioEngine.playSFX('uiConfirm');
+          this._copyText(codeBox.value, codeBox, copyCodeBtn, 'COPIAR CÓDIGO');
+        });
+
+        const copyLinkBtn = document.getElementById('btn-copy-link');
+        copyLinkBtn.addEventListener('click', () => {
+          G.AudioEngine.playSFX('uiConfirm');
+          this._copyText(linkBox.value, linkBox, copyLinkBtn, 'COPIAR LINK MÁGICO');
+        });
+      } else {
+        const confirmMagicBtn = document.getElementById('btn-confirm-magic');
+        if (confirmMagicBtn && this.magicPendingPkg) {
+          confirmMagicBtn.addEventListener('click', () => {
+            G.AudioEngine.unlock();
+            this._applyImportedSave(this.magicPendingPkg, 'Link Mágico');
+          });
+        }
+
+        const discardMagicBtn = document.getElementById('btn-discard-magic');
+        if (discardMagicBtn) {
+          discardMagicBtn.addEventListener('click', () => {
+            G.AudioEngine.playSFX('uiMove');
+            this.magicPendingPkg = null;
+            this.game.clearMagicSaveHash();
+            this.saveStatus = { type: 'ok', msg: 'Link mágico descartado. Seu save local foi mantido.' };
+            this._renderSaveModal(root);
+          });
+        }
+
+        const fileInput = document.getElementById('input-import-file');
+        fileInput.addEventListener('change', async (e) => {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+          try {
+            const content = await file.text();
+            const pkg = await this.game.decodeSaveInput(content);
+            G.AudioEngine.unlock();
+            this._applyImportedSave(pkg, 'Arquivo .json');
+          } catch (err) {
+            this.saveStatus = { type: 'err', msg: err.message || 'Erro ao ler o arquivo.' };
+            G.AudioEngine.playSFX('locked');
+            this._renderSaveModal(root);
+          }
+        });
+
+        document.getElementById('btn-apply-import-code').addEventListener('click', async () => {
+          const raw = document.getElementById('input-import-code').value;
+          try {
+            const pkg = await this.game.decodeSaveInput(raw);
+            G.AudioEngine.unlock();
+            this._applyImportedSave(pkg, 'Código / Link');
+          } catch (err) {
+            this.saveStatus = { type: 'err', msg: err.message || 'Código ou link inválido.' };
+            G.AudioEngine.playSFX('locked');
+            this._renderSaveModal(root);
+          }
+        });
+      }
     },
 
     // --- FIM DE JOGO & VITÓRIA ---
