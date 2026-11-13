@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crônicas do Abismo 8-Bit — Action-RPG Roguelite</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23141320'/%3E%3Cpath d='M3 11h10v2H3zm0-6l3 3 2-4 2 4 3-3v5H3z' fill='%23f8b818'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- TELA DE TÍTULO -->
+  <section id="screen-title" class="screen-title">
+    <div class="title-frame">
+      <header class="title-header">
+        <div class="title-badge">EDIÇÃO 8-BIT • PPU 2C02</div>
+        <h1 class="game-logo">CRÔNICAS DO ABISMO</h1>
+        <p class="game-tagline">Action-RPG Roguelite Tático • Química Elemental • Forja Rúnica • 4 Chefes</p>
+        <div class="meta-strip">
+          <span>Almas Ancestrais: <b id="title-souls-count">0</b></span>
+          <span>Melhor Andar: <b id="title-best-floor">1</b></span>
+          <span>Vitórias: <b id="title-wins">0</b></span>
+        </div>
+      </header>
+
+      <div class="title-section">
+        <h3>1. ESCOLHA SEU HERÓI</h3>
+        <div id="class-cards" class="class-cards"></div>
+      </div>
+
+      <div class="title-row">
+        <div class="title-section flex-2">
+          <h3>2. DIFICULDADE</h3>
+          <div id="diff-cards" class="diff-cards"></div>
+        </div>
+        <div class="title-section flex-1">
+          <h3>3. SEED DA MASMORRA</h3>
+          <div class="seed-box">
+            <input id="input-seed" type="text" maxlength="16" placeholder="ABISMO" aria-label="Seed da masmorra">
+            <button type="button" id="btn-rand-seed" class="pixel-btn" title="Gerar nova Seed">ALEAT.</button>
+          </div>
+          <p class="seed-hint">Mesma Seed gera exatamente o mesmo labirinto e tesouros.</p>
+        </div>
+      </div>
+
+      <footer class="title-actions">
+        <button type="button" id="btn-start-run" class="pixel-btn primary big-btn">INICIAR EXPEDIÇÃO</button>
+        <button type="button" id="btn-continue-run" class="pixel-btn warn big-btn hidden">CONTINUAR PARTIDA</button>
+        <button type="button" id="btn-open-altar" class="pixel-btn">ALTAR ANCESTRAL</button>
+        <button type="button" id="btn-open-codex-title" class="pixel-btn">CÓDICE &amp; CONTROLES</button>
+      </footer>
+    </div>
+  </section>
+
+  <!-- TELA DO JOGO -->
+  <main id="screen-game" class="screen-game hidden">
+    <!-- BARRA SUPERIOR HUD -->
+    <header class="hud-top">
+      <div class="hud-hero">
+        <img id="hud-hero-icon" src="" alt="Herói" class="pixel-icon-md">
+        <div>
+          <div id="hud-hero-lvl" class="hud-lvl">Nv.1</div>
+          <div id="hud-floor" class="hud-floor">Andar 1</div>
+        </div>
+      </div>
+
+      <div class="hud-bars">
+        <div class="bar-row">
+          <span class="bar-lbl hp">HP</span>
+          <div class="bar-track"><div id="hud-hp-fill" class="bar-fill hp"></div></div>
+          <span id="hud-hp-text" class="bar-val">120/120</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-lbl mp">MP</span>
+          <div class="bar-track"><div id="hud-mp-fill" class="bar-fill mp"></div></div>
+          <span id="hud-mp-text" class="bar-val">40/40</span>
+        </div>
+        <div class="bar-mini-row">
+          <div class="mini-track" title="Vigor (Esquiva & Bloqueio)"><div id="hud-stam-fill" class="bar-fill stam"></div></div>
+          <div class="mini-track" title="Experiência"><div id="hud-xp-fill" class="bar-fill xp"></div></div>
+        </div>
+      </div>
+
+      <div class="hud-counters">
+        <div class="cnt-pill gold" title="Ouro">OURO <b id="hud-gold">0</b></div>
+        <div class="cnt-pill key" title="Chaves">CHV <b id="hud-keys">0</b></div>
+        <div class="cnt-pill bomb" title="Bombas [B]">BMB <b id="hud-bombs">0</b></div>
+        <div id="hud-bosskey" class="cnt-pill bosskey hidden">CHAVE DO CHEFE!</div>
+      </div>
+
+      <div class="hud-nav">
+        <button type="button" id="btn-hud-inv" class="pixel-btn sm">[I] MOCHILA</button>
+        <button type="button" id="btn-hud-codex" class="pixel-btn sm">[C] CÓDICE</button>
+        <button type="button" id="btn-hud-mute" class="pixel-btn sm">SOM: ON</button>
+        <button type="button" id="btn-hud-pause" class="pixel-btn sm">[ESC]</button>
+      </div>
+    </header>
+
+    <!-- ÁREA CENTRAL: CANVAS 8-BIT + MINIMAPA -->
+    <div class="game-mid">
+      <div id="canvas-stage" class="canvas-stage crt-on">
+        <canvas id="game-canvas" width="384" height="240"></canvas>
+        <div class="crt-overlay" aria-hidden="true"></div>
+        <div class="grid-overlay" aria-hidden="true"></div>
+      </div>
+
+      <aside class="hud-side">
+        <div class="minimap-box">
+          <div class="side-title">MAPA DO ANDAR</div>
+          <canvas id="minimap-canvas" width="118" height="90"></canvas>
+          <div class="map-legend">
+            <span><i style="background:#38d8e8"></i>Você</span>
+            <span><i style="background:#d82828"></i>X Chefe</span>
+            <span><i style="background:#a86428"></i>$ Loja</span>
+            <span><i style="background:#285cc4"></i>F Forja</span>
+            <span><i style="background:#f8b818"></i>K Selo</span>
+          </div>
+        </div>
+        <div class="quick-tips">
+          <div class="side-title">COMANDOS</div>
+          <div><b>WASD/Setas</b> Mover</div>
+          <div><b>J / Clique</b> Atacar</div>
+          <div><b>Espaço</b> Escudo / Parry</div>
+          <div><b>K / Shift</b> Esquiva</div>
+          <div><b>L / Dir.</b> Habilidade</div>
+          <div><b>B</b> Bomba | <b>E</b> Usar</div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- BARRA INFERIOR HOTBAR -->
+    <footer class="hud-bottom">
+      <div class="weapon-box">
+        <img id="hb-weapon-icon" src="" alt="Arma" class="pixel-icon-md">
+        <div>
+          <div id="hb-weapon-name" class="wb-name">Espada</div>
+          <div id="hb-weapon-elem" class="wb-elem">Físico</div>
+        </div>
+      </div>
+
+      <div class="hotbar-slots">
+        <button type="button" id="hotbar-1" class="hb-slot" title="Poção de Vida [1]">
+          <span class="hb-key">1</span><span>VIDA</span><b id="hb-1-cnt">0</b>
+        </button>
+        <button type="button" id="hotbar-2" class="hb-slot" title="Éter Arcano [2]">
+          <span class="hb-key">2</span><span>ÉTER</span><b id="hb-2-cnt">0</b>
+        </button>
+        <button type="button" id="hotbar-3" class="hb-slot" title="Elixir Supremo [3]">
+          <span class="hb-key">3</span><span>ELIXIR</span><b id="hb-3-cnt">0</b>
+        </button>
+        <button type="button" id="hotbar-4" class="hb-slot" title="Pergaminho Mágico [4]">
+          <span class="hb-key">4</span><span>PERG.</span><b id="hb-4-cnt">0</b>
+        </button>
+        <button type="button" id="hotbar-skill" class="hb-slot skill" title="Habilidade de Classe [L/Q]">
+          <span class="hb-key">L/Q</span><span>SKILL</span><b id="hb-skill-cd">0</b>
+        </button>
+        <button type="button" id="hotbar-bomb" class="hb-slot bomb" title="Colocar Bomba [B]">
+          <span class="hb-key">B</span><span>BOMBA</span><b id="hb-bomb-cnt">0</b>
+        </button>
+      </div>
+    </footer>
+
+    <!-- CONTROLES TOUCH OPCIONAIS -->
+    <div id="touch-controls" class="touch-controls hidden">
+      <div class="dpad">
+        <button type="button" data-touch-dir="up" class="t-btn up">▲</button>
+        <button type="button" data-touch-dir="left" class="t-btn left">◀</button>
+        <button type="button" data-touch-dir="right" class="t-btn right">▶</button>
+        <button type="button" data-touch-dir="down" class="t-btn down">▼</button>
+      </div>
+      <div class="t-actions">
+        <button type="button" data-touch-act="atk" class="t-btn act">ATQ</button>
+        <button type="button" data-touch-act="parry" class="t-btn act">PARRY</button>
+        <button type="button" data-touch-act="dash" class="t-btn act">DASH</button>
+        <button type="button" data-touch-act="skill" class="t-btn act">SKILL</button>
+        <button type="button" data-touch-act="bomb" class="t-btn act">BOMB</button>
+        <button type="button" data-touch-act="use" class="t-btn act">USAR</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- OVERLAY DE MODAIS -->
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal-window">
+      <header class="modal-header">
+        <h2 id="modal-title">JANELA</h2>
+        <button type="button" id="modal-close-btn" class="pixel-btn sm">FECHAR [ESC]</button>
+      </header>
+      <div id="modal-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- SCRIPTS EM ORDEM (FUNCIONA TANTO EM FILE:// QUANTO HTTP://) -->
+  <script defer src="js/palette.js"></script>
+  <script defer src="js/sprites.js"></script>
+  <script defer src="js/audio.js"></script>
+  <script defer src="js/data.js"></script>
+  <script defer src="js/dungeon.js"></script>
+  <script defer src="js/combat.js"></script>
+  <script defer src="js/game.js"></script>
+  <script defer src="js/ui.js"></script>
+  <script defer>
+    window.addEventListener('DOMContentLoaded', function () {
+      window.Game8Bit.Game.init();
+      // Inicia música tema na primeira interação do usuário na tela título
+      var startTitleAudio = function () {
+        if (window.Game8Bit.Game.state === 'title') {
+          window.Game8Bit.AudioEngine.unlock();
+          window.Game8Bit.AudioEngine.playMusic('title');
+        }
+        window.removeEventListener('pointerdown', startTitleAudio);
+      };
+      window.addEventListener('pointerdown', startTitleAudio);
+    });
+  </script>
+</body>
+</html>
