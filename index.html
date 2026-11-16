@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Crônicas do Abismo 8-Bit — Action-RPG Roguelite</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23141320'/%3E%3Cpath d='M3 11h10v2H3zm0-6l3 3 2-4 2 4 3-3v5H3z' fill='%23f8b818'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="css/style.css">
@@ -14,11 +14,12 @@
       <header class="title-header">
         <div class="title-badge">EDIÇÃO 8-BIT • PPU 2C02</div>
         <h1 class="game-logo">CRÔNICAS DO ABISMO</h1>
-        <p class="game-tagline">Action-RPG Roguelite Tático • Química Elemental • Forja Rúnica • 4 Chefes</p>
+        <p class="game-tagline">Action-RPG Roguelite • 6 Heróis • 6 Andares • Enigmas &amp; Conquistas • Modo Descomunal</p>
         <div class="meta-strip">
           <span>Almas Ancestrais: <b id="title-souls-count">0</b></span>
           <span>Melhor Andar: <b id="title-best-floor">1</b></span>
           <span>Vitórias: <b id="title-wins">0</b></span>
+          <span>Conquistas: <b id="title-ach-count">0/16</b></span>
         </div>
       </header>
 
@@ -46,7 +47,8 @@
         <button type="button" id="btn-start-run" class="pixel-btn primary big-btn">INICIAR EXPEDIÇÃO</button>
         <button type="button" id="btn-continue-run" class="pixel-btn warn big-btn hidden">CONTINUAR PARTIDA</button>
         <button type="button" id="btn-open-altar" class="pixel-btn">ALTAR ANCESTRAL</button>
-        <button type="button" id="btn-open-codex-title" class="pixel-btn">CÓDICE &amp; CONTROLES</button>
+        <button type="button" id="btn-open-codex-title" class="pixel-btn">CÓDICE &amp; HISTÓRIA</button>
+        <button type="button" id="btn-open-ach-title" class="pixel-btn">CONQUISTAS</button>
         <button type="button" id="btn-export-save-title" class="pixel-btn">EXPORTAR SAVE</button>
         <button type="button" id="btn-import-save-title" class="pixel-btn">IMPORTAR SAVE</button>
       </footer>
@@ -86,12 +88,14 @@
         <div class="cnt-pill gold" title="Ouro">OURO <b id="hud-gold">0</b></div>
         <div class="cnt-pill key" title="Chaves">CHV <b id="hud-keys">0</b></div>
         <div class="cnt-pill bomb" title="Bombas [B]">BMB <b id="hud-bombs">0</b></div>
+        <div id="hud-onehit" class="cnt-pill onehit hidden" title="Modo Descomunal: 1 Golpe = Morte">1-HIT KO!</div>
         <div id="hud-bosskey" class="cnt-pill bosskey hidden">CHAVE DO CHEFE!</div>
       </div>
 
       <div class="hud-nav">
         <button type="button" id="btn-hud-inv" class="pixel-btn sm">[I] MOCHILA</button>
         <button type="button" id="btn-hud-codex" class="pixel-btn sm">[C] CÓDICE</button>
+        <button type="button" id="btn-hud-touch" class="pixel-btn sm">TOUCH</button>
         <button type="button" id="btn-hud-mute" class="pixel-btn sm">SOM: ON</button>
         <button type="button" id="btn-hud-pause" class="pixel-btn sm">[ESC]</button>
       </div>
@@ -161,21 +165,25 @@
       </div>
     </footer>
 
-    <!-- CONTROLES TOUCH OPCIONAIS -->
+    <!-- AVISO DE ROTAÇÃO PAISAGEM PARA CELULAR EM RETRATO -->
+    <div id="portrait-tip" class="portrait-tip">
+      <span>Gire o celular para o <b>Modo Paisagem</b> (horizontal) para jogar melhor!</span>
+    </div>
+
+    <!-- CONTROLES TOUCH ANALÓGICO + ARCO DE AÇÕES (MOBILE PAISAGEM) -->
     <div id="touch-controls" class="touch-controls hidden">
-      <div class="dpad">
-        <button type="button" data-touch-dir="up" class="t-btn up">▲</button>
-        <button type="button" data-touch-dir="left" class="t-btn left">◀</button>
-        <button type="button" data-touch-dir="right" class="t-btn right">▶</button>
-        <button type="button" data-touch-dir="down" class="t-btn down">▼</button>
+      <div id="joy-zone" class="joy-zone" aria-label="Direcional Analógico">
+        <div id="joy-base" class="joy-base">
+          <div id="joy-knob" class="joy-knob"></div>
+        </div>
       </div>
       <div class="t-actions">
-        <button type="button" data-touch-act="atk" class="t-btn act">ATQ</button>
-        <button type="button" data-touch-act="parry" class="t-btn act">PARRY</button>
-        <button type="button" data-touch-act="dash" class="t-btn act">DASH</button>
-        <button type="button" data-touch-act="skill" class="t-btn act">SKILL</button>
-        <button type="button" data-touch-act="bomb" class="t-btn act">BOMB</button>
-        <button type="button" data-touch-act="use" class="t-btn act">USAR</button>
+        <button type="button" data-touch-act="atk" class="t-btn act t-atk">ATQ</button>
+        <button type="button" data-touch-act="parry" class="t-btn act t-parry">PARRY</button>
+        <button type="button" data-touch-act="dash" class="t-btn act t-dash">ESQ</button>
+        <button type="button" data-touch-act="skill" class="t-btn act t-skill">SKILL</button>
+        <button type="button" data-touch-act="bomb" class="t-btn act t-bomb">BOMB</button>
+        <button type="button" data-touch-act="use" class="t-btn act t-use">USAR</button>
       </div>
     </div>
   </main>

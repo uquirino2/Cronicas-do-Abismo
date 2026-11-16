@@ -23,8 +23,9 @@ window.Game8Bit = window.Game8Bit || {};
         if (spec.isBoss) {
           const tpl = G.GameData.BOSSES[spec.tplId];
           if (!tpl) continue;
-          const mult = game.difficulty.enemyHpMult * (1 + Math.floor((room.floorNum - 1) / 4) * 0.65);
-          const dmgMult = game.difficulty.enemyDmgMult * (1 + Math.floor((room.floorNum - 1) / 4) * 0.4);
+          const loopScale = 1 + Math.floor((room.floorNum - 1) / G.GameData.BIOMES.length) * 0.75;
+          const mult = game.difficulty.enemyHpMult * loopScale;
+          const dmgMult = game.difficulty.enemyDmgMult * loopScale;
           room.activeEnemies.push({
             id: 'boss_' + Math.random().toString(36).slice(2, 8),
             isBoss: true,
@@ -39,14 +40,14 @@ window.Game8Bit = window.Game8Bit || {};
             hp: Math.round(tpl.hp * mult),
             maxHp: Math.round(tpl.hp * mult),
             atk: Math.round(tpl.atk * dmgMult),
-            speed: tpl.speed,
+            speed: tpl.speed * (game.difficulty.enemySpeedMult || 1.0),
             element: tpl.element,
             weak: tpl.weak,
             xp: tpl.xp,
             goldRange: tpl.gold,
             phase: 1,
             state: 'chase',
-            timer: 0.9,
+            timer: 0.85,
             patternIdx: 0,
             vx: 0,
             vy: 0,
@@ -60,6 +61,8 @@ window.Game8Bit = window.Game8Bit || {};
           const tpl = G.GameData.ENEMIES[spec.tplId];
           if (!tpl) continue;
           const hp = Math.round(tpl.hp * (spec.hpScale || 1));
+          const speedScale = spec.speedScale || game.difficulty.enemySpeedMult || 1.0;
+          const cdScale = spec.cdScale || game.difficulty.enemyCdMult || 1.0;
           room.activeEnemies.push({
             id: 'en_' + Math.random().toString(36).slice(2, 8),
             isBoss: false,
@@ -75,20 +78,20 @@ window.Game8Bit = window.Game8Bit || {};
             hp,
             maxHp: hp,
             atk: Math.round(tpl.atk * (spec.dmgScale || 1)),
-            speed: tpl.speed * (spec.elite ? 1.12 : 1.0),
+            speed: tpl.speed * (spec.elite ? 1.14 : 1.0) * speedScale,
             range: tpl.range,
-            windup: tpl.windup,
-            cooldown: tpl.cooldown,
+            windup: tpl.windup * Math.max(0.70, cdScale),
+            cooldown: tpl.cooldown * cdScale,
             ai: tpl.ai,
             element: tpl.element,
             weak: tpl.weak,
             resist: tpl.resist,
             flying: !!tpl.flying,
-            xp: Math.round(tpl.xp * (spec.elite ? 1.8 : 1)),
+            xp: Math.round(tpl.xp * (spec.elite ? 1.85 : 1)),
             goldRange: tpl.gold,
             state: 'chase',
-            stateTimer: 0.4 + Math.random() * 0.4,
-            cdTimer: 0.5,
+            stateTimer: 0.35 + Math.random() * 0.35,
+            cdTimer: 0.4,
             vx: 0,
             vy: 0,
             facingX: 0,
@@ -105,6 +108,25 @@ window.Game8Bit = window.Game8Bit || {};
     // ========================================================================
     // AÇÕES DO JOGADOR
     // ========================================================================
+    _resolveTouchAim(game, p, maxRange) {
+      if (!game.meta.settings.touch || game.mouse.active) return;
+      if (Math.hypot(p.moveX || 0, p.moveY || 0) > 0.15) return;
+      const enemies = game.currentRoom?.activeEnemies || [];
+      let nearest = null;
+      let bestDist = maxRange;
+      for (const en of enemies) {
+        if (en.hp <= 0) continue;
+        const d = U.dist(p.x, p.y, en.x, en.y);
+        if (d < bestDist) {
+          bestDist = d;
+          nearest = en;
+        }
+      }
+      if (nearest) {
+        p.aimAngle = Math.atan2(nearest.y - p.y, nearest.x - p.x);
+      }
+    },
+
     triggerAttack(game) {
       const p = game.player;
       if (p.attackCd > 0 || p.dashTimer > 0) return;
@@ -114,47 +136,75 @@ window.Game8Bit = window.Game8Bit || {};
       p.attackCd = 0.34 / speed;
       p.blocking = false;
 
+      const reachBase = weapon ? weapon.range : 24;
+      this._resolveTouchAim(game, p, (weapon?.ranged ? 190 : reachBase + 46));
+
       const angle = p.aimAngle;
       const elem = weapon ? weapon.element : 'physical';
       const isCritRoll = p.guaranteedCrit || Math.random() < p.getCritChance();
       if (p.guaranteedCrit) p.guaranteedCrit = false;
 
       if (weapon && weapon.ranged) {
-        // Disparo à distância (Cajado / Arco)
-        if (weapon.kind === 'staff' && p.mp >= 3) {
+        // Disparo à distância (Cajado / Grimório / Arco / Besta)
+        const isMagic = weapon.kind === 'staff' || weapon.kind === 'grimoire';
+        if (isMagic && p.mp >= 3) {
           p.mp -= 3;
           G.AudioEngine.playSFX('magic');
         } else {
           G.AudioEngine.playSFX('bow');
         }
-        const baseDmg = weapon.kind === 'staff' ? p.getMag() : p.getAtk();
+        const baseDmg = isMagic ? p.getMag() : p.getAtk();
         const dmg = Math.round(baseDmg * (isCritRoll ? p.getCritMult() : 1.0));
-        const projSpeed = weapon.kind === 'bow' ? 210 : 165;
+        const projSpeed = weapon.kind === 'crossbow' ? 255 : (weapon.kind === 'bow' ? 215 : 172);
+        const col = G.ELEMENT_META[elem].color;
 
-        game.projectiles.push({
-          fromPlayer: true,
-          x: p.x + Math.cos(angle) * 10,
-          y: p.y + Math.sin(angle) * 10,
-          vx: Math.cos(angle) * projSpeed,
-          vy: Math.sin(angle) * projSpeed,
-          dmg,
-          element: elem,
-          isCrit: isCritRoll,
-          radius: 4,
-          life: 1.2,
-          color: G.ELEMENT_META[elem].color
-        });
+        if (weapon.kind === 'grimoire') {
+          for (const spread of [-0.14, 0.14]) {
+            const a = angle + spread;
+            game.projectiles.push({
+              fromPlayer: true,
+              homing: true,
+              x: p.x + Math.cos(a) * 10,
+              y: p.y + Math.sin(a) * 10,
+              vx: Math.cos(a) * projSpeed,
+              vy: Math.sin(a) * projSpeed,
+              dmg: Math.round(dmg * 0.68),
+              element: elem,
+              isCrit: isCritRoll,
+              radius: 4,
+              life: 1.25,
+              color: col
+            });
+          }
+        } else {
+          game.projectiles.push({
+            fromPlayer: true,
+            piercing: weapon.kind === 'crossbow',
+            x: p.x + Math.cos(angle) * 10,
+            y: p.y + Math.sin(angle) * 10,
+            vx: Math.cos(angle) * projSpeed,
+            vy: Math.sin(angle) * projSpeed,
+            dmg,
+            element: elem,
+            isCrit: isCritRoll,
+            radius: 4,
+            life: weapon.kind === 'crossbow' ? 1.35 : 1.2,
+            color: col
+          });
+        }
         p.attackAnim = 0.16;
       } else {
-        // Corte corpo-a-corpo em arco
+        // Corte corpo-a-corpo (Espada / Machado / Lança / Martelo / Foice / Adaga)
         G.AudioEngine.playSFX('slash');
-        const reach = (weapon ? weapon.range : 24) + 4;
+        const kind = weapon ? weapon.kind : 'sword';
+        const reach = reachBase + 4;
         const arc = weapon ? weapon.arc : 1.9;
         p.attackAnim = 0.18;
         p.slashEffect = {
           angle,
           arc,
           reach,
+          kind,
           timer: 0.16,
           maxTimer: 0.16,
           color: G.ELEMENT_META[elem].color
@@ -165,12 +215,11 @@ window.Game8Bit = window.Game8Bit || {};
         const hitTy = Math.floor((p.y + Math.sin(angle) * (reach * 0.7)) / TS);
         this.applyElementToTile(game, game.currentRoom, hitTx, hitTy, elem);
 
-        // Acertar barris no arco
         this._hitBarrelsInArc(game, p.x, p.y, reach, angle, arc, elem);
 
-        // Acertar inimigos no arco
         const room = game.currentRoom;
         const enemies = room.activeEnemies || [];
+        let scytheHits = 0;
         for (const en of enemies) {
           if (en.hp <= 0) continue;
           const d = U.dist(p.x, p.y, en.x, en.y);
@@ -179,6 +228,7 @@ window.Game8Bit = window.Game8Bit || {};
           const diff = Math.abs(Math.atan2(Math.sin(angTo - angle), Math.cos(angTo - angle)));
           if (diff <= arc * 0.55 || d < 14) {
             let dmg = p.getAtk();
+            if (kind === 'scythe') dmg = Math.round(dmg * 0.72 + p.getMag() * 0.55);
             let crit = isCritRoll;
             // Bônus de costas para Assassino
             if (p.classId === 'assassin') {
@@ -189,14 +239,22 @@ window.Game8Bit = window.Game8Bit || {};
               }
             }
             if (crit) dmg = Math.round(dmg * p.getCritMult());
-            const kx = Math.cos(angTo) * 95;
-            const ky = Math.sin(angTo) * 95;
+            const kbMult = kind === 'hammer' ? 145 : (kind === 'spear' ? 115 : 95);
+            const kx = Math.cos(angTo) * kbMult;
+            const ky = Math.sin(angTo) * kbMult;
             this.damageEnemy(game, en, dmg, elem, kx, ky, crit, angle);
 
+            if (kind === 'hammer' && Math.random() < 0.28) {
+              this.applyStatus(en, 'stun', 0.85, 0);
+            }
+            if (kind === 'scythe') scytheHits++;
             if (p.perks.emberHit && Math.random() < 0.35) {
               this.applyStatus(en, 'burn', 3.0, 4);
             }
           }
+        }
+        if (scytheHits > 0) {
+          p.mp = Math.min(p.getMaxMp(), p.mp + Math.min(12, scytheHits * 4));
         }
       }
     },
@@ -206,8 +264,10 @@ window.Game8Bit = window.Game8Bit || {};
       if (p.dashCd > 0 || p.dashTimer > 0 || p.stamina < 22) return;
       p.stamina -= 22;
       p.dashTimer = 0.22;
-      p.dashCd = 0.55;
-      p.iFrames = Math.max(p.iFrames, 0.26);
+      const metaCdr = (game.meta.upgrades?.meta_cdr || 0) * 0.08;
+      const dashCdr = Math.max(0.45, 1 - (p.perks.dashCdr || 0) - metaCdr);
+      p.dashCd = 0.55 * dashCdr;
+      p.iFrames = Math.max(p.iFrames, 0.28);
       p.blocking = false;
 
       let dx = p.moveX;
@@ -232,7 +292,7 @@ window.Game8Bit = window.Game8Bit || {};
       if (!p.blocking) {
         p.blocking = true;
         const relicBonus = (p.equip.relic1?.parryWindow || 0) + (p.equip.relic2?.parryWindow || 0);
-        p.parryTimer = 0.24 + (p.classDef.parryBonus || 0) + relicBonus;
+        p.parryTimer = 0.24 + (p.classDef.parryBonus || 0) + (p.perks.parryBonus || 0) + relicBonus;
       }
     },
 
@@ -253,14 +313,15 @@ window.Game8Bit = window.Game8Bit || {};
         G.AudioEngine.playSFX('locked');
         return;
       }
+      this._resolveTouchAim(game, p, 200);
       p.mp -= sk.cost;
-      p.skillCd = sk.cooldown * Math.max(0.5, 1 - p.perks.cdr);
+      const totalCdr = (p.perks.cdr || 0) + (p.equip.relic1?.bonusCdr || 0) + (p.equip.relic2?.bonusCdr || 0) + (game.meta.upgrades?.meta_cdr || 0) * 0.08;
+      p.skillCd = sk.cooldown * Math.max(0.45, 1 - totalCdr);
 
       if (p.classId === 'knight') {
-        // Investida Sísmica
         const ang = p.aimAngle;
         p.dashTimer = 0.20;
-        p.iFrames = 0.28;
+        p.iFrames = 0.30;
         p.dashVx = Math.cos(ang) * 220;
         p.dashVy = Math.sin(ang) * 220;
         G.AudioEngine.playSFX('explosion');
@@ -269,19 +330,18 @@ window.Game8Bit = window.Game8Bit || {};
         const slamX = p.x + Math.cos(ang) * 22;
         const slamY = p.y + Math.sin(ang) * 22;
         game.spawnParticles(slamX, slamY, P.gold, 18, 85);
-        const dmg = Math.round(p.getAtk() * 2.1);
+        const dmg = Math.round(p.getAtk() * 2.15);
         for (const en of (game.currentRoom.activeEnemies || [])) {
           if (en.hp <= 0) continue;
-          if (U.dist(slamX, slamY, en.x, en.y) <= 50) {
+          if (U.dist(slamX, slamY, en.x, en.y) <= 52) {
             this.damageEnemy(game, en, dmg, 'physical', Math.cos(ang) * 140, Math.sin(ang) * 140, true);
             this.applyStatus(en, 'stun', 1.4, 0);
           }
         }
         game.addFloatingText(p.x, p.y - 14, 'IMPACTO!', P.gold);
       } else if (p.classId === 'mage') {
-        // Nova Elemental (8 orbes)
         const elem = p.equip.weapon ? p.equip.weapon.element : 'arcane';
-        const dmg = Math.round(p.getMag() * 1.45 + 6);
+        const dmg = Math.round(p.getMag() * 1.5 + 8);
         G.AudioEngine.playSFX('magic');
         for (let i = 0; i < 8; i++) {
           const a = (Math.PI * 2 * i) / 8 + p.aimAngle;
@@ -289,19 +349,18 @@ window.Game8Bit = window.Game8Bit || {};
             fromPlayer: true,
             x: p.x,
             y: p.y,
-            vx: Math.cos(a) * 155,
-            vy: Math.sin(a) * 155,
+            vx: Math.cos(a) * 160,
+            vy: Math.sin(a) * 160,
             dmg,
             element: elem,
             isCrit: false,
             radius: 4,
-            life: 1.1,
+            life: 1.15,
             color: G.ELEMENT_META[elem].color
           });
         }
         game.addFloatingText(p.x, p.y - 14, 'NOVA!', G.ELEMENT_META[elem].color);
       } else if (p.classId === 'assassin') {
-        // Passo Sombrio
         const oldX = p.x;
         const oldY = p.y;
         const ang = p.aimAngle;
@@ -314,12 +373,11 @@ window.Game8Bit = window.Game8Bit || {};
             break;
           }
         }
-        p.iFrames = 0.38;
+        p.iFrames = 0.40;
         p.guaranteedCrit = true;
         G.AudioEngine.playSFX('dash');
         game.spawnParticles(oldX, oldY, P.acid, 16, 65);
         game.spawnParticles(p.x, p.y, P.purple, 14, 55);
-        // Nuvem tóxica na origem
         game.hazards.push({
           type: 'poison_cloud',
           x: oldX,
@@ -329,6 +387,74 @@ window.Game8Bit = window.Game8Bit || {};
           tickTimer: 0.1
         });
         game.addFloatingText(p.x, p.y - 14, 'CRÍTICO PRONTO!', P.acid);
+      } else if (p.classId === 'paladin') {
+        // Consagração Solar: purifica debuffs, concede barreira e explode fogo sagrado
+        p.statuses = {};
+        p.iFrames = Math.max(p.iFrames, 0.48);
+        G.AudioEngine.playSFX('explosion');
+        game.shake = 5;
+        game.spawnParticles(p.x, p.y, P.gold, 24, 95);
+        const dmg = Math.round((p.getAtk() + p.getMag()) * 1.45);
+        for (const en of (game.currentRoom.activeEnemies || [])) {
+          if (en.hp <= 0) continue;
+          if (U.dist(p.x, p.y, en.x, en.y) <= 72) {
+            const ang = Math.atan2(en.y - p.y, en.x - p.x);
+            this.damageEnemy(game, en, dmg, 'fire', Math.cos(ang) * 120, Math.sin(ang) * 120, true);
+            this.applyStatus(en, 'burn', 3.5, 5);
+          }
+        }
+        game.addFloatingText(p.x, p.y - 16, 'CONSAGRAÇÃO!', P.gold);
+      } else if (p.classId === 'ranger') {
+        // Chuva de 5 flechas + salto evasivo para trás
+        const ang = p.aimAngle;
+        const dmg = Math.round(p.getAtk() * 1.15);
+        G.AudioEngine.playSFX('bow');
+        const elem = p.equip.weapon ? p.equip.weapon.element : 'physical';
+        const col = G.ELEMENT_META[elem].color;
+        for (let i = -2; i <= 2; i++) {
+          const a = ang + i * 0.16;
+          game.projectiles.push({
+            fromPlayer: true,
+            piercing: true,
+            x: p.x + Math.cos(a) * 8,
+            y: p.y + Math.sin(a) * 8,
+            vx: Math.cos(a) * 235,
+            vy: Math.sin(a) * 235,
+            dmg,
+            element: elem,
+            isCrit: Math.random() < p.getCritChance() + 0.15,
+            radius: 4,
+            life: 1.1,
+            color: col
+          });
+        }
+        p.dashTimer = 0.16;
+        p.iFrames = Math.max(p.iFrames, 0.28);
+        p.dashVx = -Math.cos(ang) * 185;
+        p.dashVy = -Math.sin(ang) * 185;
+        game.addFloatingText(p.x, p.y - 14, 'SARAIVADA!', P.lime);
+      } else if (p.classId === 'necromancer') {
+        // Nova de dreno + Invocação de até 3 Espectros Aliados
+        G.AudioEngine.playSFX('magic');
+        const dmg = Math.round(p.getMag() * 1.35);
+        game.spawnParticles(p.x, p.y, P.violet, 20, 75);
+        for (const en of (game.currentRoom.activeEnemies || [])) {
+          if (en.hp > 0 && U.dist(p.x, p.y, en.x, en.y) <= 56) {
+            this.damageEnemy(game, en, dmg, 'arcane', 0, 0, false);
+          }
+        }
+        game.allies = game.allies || [];
+        for (let k = 0; k < 2; k++) {
+          if (game.allies.length >= 4) game.allies.shift();
+          game.allies.push({
+            x: p.x + (k === 0 ? -14 : 14),
+            y: p.y - 8,
+            life: 9.5,
+            cd: 0.2,
+            dmg: Math.max(8, Math.round(p.getMag() * 0.85))
+          });
+        }
+        game.addFloatingText(p.x, p.y - 16, 'ESPECTROS!', P.violet);
       }
     },
 
@@ -371,6 +497,7 @@ window.Game8Bit = window.Game8Bit || {};
             D.setTile(room, tx, ty, TILE.DOOR_SECRET);
             game.addFloatingText(cx, cy - 8, 'PASSAGEM SECRETA!', P.gold);
             G.AudioEngine.playSFX('doorOpen');
+            if (game.recordStat) game.recordStat('secretsFound', 1);
             // Abre ambos os tiles da porta secreta e na sala secreta conectada
             for (const dk of Object.keys(room.neighbors)) {
               const nb = room.neighbors[dk];
@@ -481,6 +608,7 @@ window.Game8Bit = window.Game8Bit || {};
         });
         G.AudioEngine.playSFX('burn');
         game.addFloatingText(tx * TS + 8, ty * TS, 'ÓLEO INCENDIADO!', P.orange);
+        if (game.recordStat) game.recordStat('totalReactions', 1);
       } else if (t === TILE.WATER && element === 'lightning') {
         // Eletrificar toda água conectada
         const shocked = [];
@@ -498,6 +626,7 @@ window.Game8Bit = window.Game8Bit || {};
           }
         }
         game.addFloatingText(tx * TS + 8, ty * TS, 'ÁGUA ELETRIFICADA!', P.yellow);
+        if (game.recordStat) game.recordStat('totalReactions', 1);
       } else if (t === TILE.WATER && element === 'ice') {
         this._floodTile(room, tx, ty, TILE.WATER, 16, (fx, fy) => {
           D.setTile(room, fx, fy, TILE.ICE);
@@ -505,9 +634,11 @@ window.Game8Bit = window.Game8Bit || {};
         });
         G.AudioEngine.playSFX('freeze');
         game.addFloatingText(tx * TS + 8, ty * TS, 'CONGELADO!', P.cyan);
+        if (game.recordStat) game.recordStat('totalReactions', 1);
       } else if (t === TILE.ICE && element === 'fire') {
         D.setTile(room, tx, ty, TILE.WATER);
         game.spawnParticles(tx * TS + 8, ty * TS + 8, P.white, 6, 40);
+        if (game.recordStat) game.recordStat('totalReactions', 1);
       }
 
       // Nuvem venenosa + Fogo = Explosão Tóxica!
@@ -518,6 +649,7 @@ window.Game8Bit = window.Game8Bit || {};
           const h = game.hazards[i];
           if (h.type === 'poison_cloud' && U.dist(cx, cy, h.x, h.y) <= h.radius + 10) {
             game.hazards.splice(i, 1);
+            if (game.recordStat) game.recordStat('totalReactions', 1);
             this.explodeAt(game, h.x, h.y, 38, 28, true);
           }
         }
@@ -635,10 +767,11 @@ window.Game8Bit = window.Game8Bit || {};
       const room = game.currentRoom;
       game.recordCodexEnemy(en.tplId);
       game.stats.kills += 1;
+      if (game.recordStat) game.recordStat('totalKills', 1);
 
-      // Explodir em veneno se perk ativo
-      if (en.statuses.poison && game.player.perks.venomBurst) {
-        game.hazards.push({ type: 'poison_cloud', x: en.x, y: en.y, radius: 28, life: 3.5, tickTimer: 0.1 });
+      // Explodir em veneno se perk ativo ou se for Esporo Tóxico
+      if ((en.statuses.poison && game.player.perks.venomBurst) || en.tplId === 'fungoid') {
+        game.hazards.push({ type: 'poison_cloud', x: en.x, y: en.y, radius: en.tplId === 'fungoid' ? 26 : 28, life: 3.5, tickTimer: 0.1 });
       }
 
       // Slime se divide em 2 mini-slimes se não estava congelado
@@ -682,44 +815,59 @@ window.Game8Bit = window.Game8Bit || {};
         }
       }
 
-      // XP & Ouro & Drops
+      // XP & Ouro & Drops (taxa de drop aumentada + pity system!)
       game.gainXp(en.xp);
-      const gold = Math.round(U.lerp(en.goldRange[0], en.goldRange[1], Math.random()) * (1 + game.player.perks.goldMult));
+      const goldMultBonus = (game.player.perks.goldMult || 0) + (game.player.equip.relic1?.goldBonus || 0) + (game.player.equip.relic2?.goldBonus || 0) + (game.meta.upgrades?.meta_greed || 0) * 0.10;
+      const gold = Math.round(U.lerp(en.goldRange[0], en.goldRange[1], Math.random()) * (1 + goldMultBonus));
       if (gold > 0) game.spawnDrop(en.x - 4, en.y, 'gold', gold);
+
+      const dropBonus = (game.difficulty.lootMult || 1.0) * (1 + (game.player.perks.dropBonus || 0) + (game.meta.upgrades?.meta_greed || 0) * 0.12);
+      const dropChance = Math.min(0.88, 0.42 * dropBonus);
 
       if (en.dropsBossKey) {
         game.spawnDrop(en.x + 6, en.y, 'boss_key');
         game.addFloatingText(en.x, en.y - 16, 'CHAVE DO CHEFE!', P.gold);
-      } else if (en.elite || Math.random() < 0.28) {
-        const dropRoll = Math.random();
-        if (dropRoll < 0.35) game.spawnDrop(en.x, en.y, 'hp_orb');
-        else if (dropRoll < 0.55) game.spawnDrop(en.x, en.y, 'shard');
-        else if (dropRoll < 0.75) game.spawnDrop(en.x, en.y, 'bomb');
-        else if (dropRoll < 0.90) game.spawnDrop(en.x, en.y, 'key');
-        else game.spawnDrop(en.x, en.y, 'loot');
+      } else if (en.elite || Math.random() < dropChance) {
+        game._pityCounter = (game._pityCounter || 0) + 1;
+        if (game._pityCounter >= 6 || en.elite && Math.random() < 0.42) {
+          game._pityCounter = 0;
+          game.spawnDrop(en.x, en.y, 'loot');
+        } else {
+          const dropRoll = Math.random();
+          if (dropRoll < 0.24) game.spawnDrop(en.x, en.y, 'hp_orb');
+          else if (dropRoll < 0.50) game.spawnDrop(en.x, en.y, 'shard');
+          else if (dropRoll < 0.68) game.spawnDrop(en.x, en.y, 'bomb');
+          else if (dropRoll < 0.80) game.spawnDrop(en.x, en.y, 'key');
+          else {
+            game._pityCounter = 0;
+            game.spawnDrop(en.x, en.y, 'loot');
+          }
+        }
+        if (en.elite) game.spawnDrop(en.x - 8, en.y + 6, 'shard');
       }
 
       if (en.isBoss) {
         room.bossDefeated = true;
         room.cleared = true;
         game.stats.bosses += 1;
-        game.player.soulsEarned += Math.round((10 + room.floorNum * 6) * game.difficulty.soulMult);
+        if (game.recordStat) game.recordStat('totalBosses', 1);
+        game.player.soulsEarned += Math.round((12 + room.floorNum * 7) * game.difficulty.soulMult);
         G.AudioEngine.playSFX('explosion');
         game.shake = 10;
         game.spawnParticles(en.x, en.y, P.gold, 34, 120);
 
-        // Drop garantido de baú/recompensa do Chefe + Escada para o próximo andar
-        const rar = room.floorNum >= 3 ? 'lendario' : 'epico';
+        const rar = room.floorNum >= 4 ? 'lendario' : (room.floorNum >= 2 ? 'epico' : 'raro');
         const bossItem = G.GameData.generateProceduralLoot(game.rng, room.floorNum + 1, null, rar);
         game.spawnDrop(en.x, en.y + 10, 'item', bossItem);
         game.spawnDrop(en.x - 14, en.y, 'shard');
         game.spawnDrop(en.x + 14, en.y, 'shard');
+        if (game.difficulty.id === 'nightmare' || game.difficulty.id === 'descomunal') {
+          const extraRelic = G.GameData.generateProceduralLoot(game.rng, room.floorNum + 1, 'relic', 'raro');
+          game.spawnDrop(en.x + 16, en.y + 12, 'item', extraRelic);
+        }
 
-        // Spawn Escada no centro norte da sala do chefe
         D.setTile(room, 12, 4, TILE.STAIRS_DOWN);
         game.addFloatingText(12 * TS, 4 * TS - 6, 'ESCADA ABERTA!', P.cyan);
-
-        // Voltar música do bioma após derrotar chefe
         G.AudioEngine.playMusic(room.biome.music);
       }
     },
@@ -728,7 +876,7 @@ window.Game8Bit = window.Game8Bit || {};
       const p = game.player;
       if (p.iFrames > 0 || game.state !== 'playing') return false;
 
-      // Parry Perfeito contra golpe corpo-a-corpo
+      // Parry Perfeito (anula qualquer dano — inclusive em Descomunal!)
       if (canBlock && p.blocking && p.parryTimer > 0) {
         G.AudioEngine.playSFX('parry');
         game.hitStop = 0.05;
@@ -737,10 +885,10 @@ window.Game8Bit = window.Game8Bit || {};
         p.mp = Math.min(p.getMaxMp(), p.mp + 6);
         game.addFloatingText(p.x, p.y - 14, 'PARRY!', P.cyan);
         game.spawnParticles(p.x, p.y, P.cyan, 12, 80);
+        if (game.recordStat) game.recordStat('totalParries', 1);
 
-        // Atordoa/congela inimigos próximos
         for (const en of (game.currentRoom.activeEnemies || [])) {
-          if (en.hp > 0 && U.dist(p.x, p.y, en.x, en.y) <= 40) {
+          if (en.hp > 0 && U.dist(p.x, p.y, en.x, en.y) <= 42) {
             this.applyStatus(en, p.perks.frostParry ? 'freeze' : 'stun', p.perks.frostParry ? 2.5 : 1.6, 0);
           }
         }
@@ -754,14 +902,25 @@ window.Game8Bit = window.Game8Bit || {};
         p.stamina = Math.max(0, p.stamina - 10);
         G.AudioEngine.playSFX('hit');
       } else {
-        // Subtrai Defesa
         const def = p.getDef();
         dmg = Math.max(1, Math.round(dmg - def * 0.65));
-        if (p.equip.armor?.resist === element) dmg = Math.max(1, Math.round(dmg * 0.55));
+        const hasRes = p.equip.armor?.resist === element || p.equip.relic1?.resist === element || p.equip.relic2?.resist === element;
+        if (hasRes) dmg = Math.max(1, Math.round(dmg * 0.55));
         if (element === 'fire' && p.perks.immuneFire) dmg = 0;
       }
 
       if (dmg <= 0) return false;
+
+      // REGRA DESCOMUNAL: Levou qualquer dano -> MORTE INSTANTÂNEA!
+      if (game.difficulty.oneHitDeath) {
+        p.hp = 0;
+        game.shake = 10;
+        G.AudioEngine.playSFX('playerHurt');
+        game.addFloatingText(p.x, p.y - 14, 'MORTE INSTANTÂNEA!', P.red);
+        game.spawnParticles(p.x, p.y, P.red, 18, 90);
+        game.triggerGameOver();
+        return true;
+      }
 
       p.hp -= dmg;
       p.iFrames = 0.65;
@@ -770,7 +929,6 @@ window.Game8Bit = window.Game8Bit || {};
       game.addFloatingText(p.x, p.y - 12, `-${dmg}`, P.red);
       game.spawnParticles(p.x, p.y, P.red, 10, 70);
 
-      // Knockback
       const ang = Math.atan2(p.y - srcY, p.x - srcX);
       p.knockVx = Math.cos(ang) * 110;
       p.knockVy = Math.sin(ang) * 110;
@@ -778,7 +936,7 @@ window.Game8Bit = window.Game8Bit || {};
       if (element === 'poison') this.applyStatus(p, 'poison', 3.5, 2);
       else if (element === 'fire' && !p.perks.immuneFire) this.applyStatus(p, 'burn', 2.5, 3);
 
-      // Centelha da Fênix salva de golpe fatal
+      // Centelha da Fênix salva de golpe fatal (exceto Descomunal já tratado acima)
       if (p.hp <= 0 && p.perks.reviveFloor && !p.revivedThisFloor) {
         p.revivedThisFloor = true;
         p.hp = Math.round(p.getMaxHp() * 0.42);
@@ -859,6 +1017,12 @@ window.Game8Bit = window.Game8Bit || {};
             st.tick = 0.55;
             if (entity === game.player) {
               if (!entity.perks.immuneFire || stKey === 'poison') {
+                if (game.difficulty.oneHitDeath) {
+                  entity.hp = 0;
+                  game.addFloatingText(entity.x, entity.y - 10, 'TOXINA FATAL!', P.red);
+                  game.triggerGameOver();
+                  return;
+                }
                 entity.hp -= st.power;
                 game.addFloatingText(entity.x, entity.y - 10, `-${st.power}`, stKey === 'burn' ? P.orange : P.acid);
                 if (entity.hp <= 0) {
@@ -941,8 +1105,18 @@ window.Game8Bit = window.Game8Bit || {};
 
     _executeEnemyAttack(game, en, p, ang) {
       const a = en.targetAng !== undefined ? en.targetAng : ang;
+      const pMult = game.difficulty.projSpeedMult || 1.0;
       if (en.ai === 'melee' || en.ai === 'erratic' || en.ai === 'slime' || en.ai === 'shield' || en.ai === 'stalker') {
         if (U.dist(en.x, en.y, p.x, p.y) <= en.range + 12) {
+          this.damagePlayer(game, en.atk, en.element, en.x, en.y, true);
+        }
+      } else if (en.ai === 'charger') {
+        // Paladino Caído: investida elétrica rápida
+        en.vx = Math.cos(a) * 210;
+        en.vy = Math.sin(a) * 210;
+        G.AudioEngine.playSFX('dash');
+        game.spawnParticles(en.x, en.y, P.yellow, 8, 55);
+        if (U.dist(en.x, en.y, p.x, p.y) <= en.range + 16) {
           this.damagePlayer(game, en.atk, en.element, en.x, en.y, true);
         }
       } else if (en.ai === 'golem') {
@@ -959,8 +1133,8 @@ window.Game8Bit = window.Game8Bit || {};
             fromPlayer: false,
             x: en.x,
             y: en.y,
-            vx: Math.cos(ka) * 95,
-            vy: Math.sin(ka) * 95,
+            vx: Math.cos(ka) * 95 * pMult,
+            vy: Math.sin(ka) * 95 * pMult,
             dmg: Math.round(en.atk * 0.75),
             element: 'fire',
             radius: 4,
@@ -969,7 +1143,7 @@ window.Game8Bit = window.Game8Bit || {};
           });
         }
       } else if (en.ai === 'ranged' || en.ai === 'caster' || en.ai === 'turret') {
-        const spd = en.ai === 'ranged' ? 140 : 120;
+        const spd = (en.ai === 'ranged' ? 142 : 122) * pMult;
         game.projectiles.push({
           fromPlayer: false,
           x: en.x,
@@ -1026,8 +1200,8 @@ window.Game8Bit = window.Game8Bit || {};
             fromPlayer: false,
             x: en.x,
             y: en.y,
-            vx: Math.cos(a) * 115,
-            vy: Math.sin(a) * 115,
+            vx: Math.cos(a) * 115 * pMult,
+            vy: Math.sin(a) * 115 * pMult,
             dmg: en.atk,
             element: 'poison',
             radius: 4,
@@ -1065,16 +1239,16 @@ window.Game8Bit = window.Game8Bit || {};
       boss.facingX = Math.cos(ang);
       boss.facingY = Math.sin(ang);
 
-      // Transição Fase 2 (< 50% HP)
       if (boss.phase === 1 && boss.hp <= boss.maxHp * 0.5) {
         boss.phase = 2;
         G.AudioEngine.playSFX('bossRoar');
         game.shake = 8;
         game.spawnParticles(boss.x, boss.y, P.red, 26, 95);
         game.addFloatingText(boss.x, boss.y - 20, 'FASE II: FURIA!', P.red);
-        boss.timer = 0.8;
+        boss.timer = 0.7;
       }
 
+      const cdScale = game.difficulty.enemyCdMult || 1.0;
       boss.timer -= dt;
       if (boss.state === 'chase') {
         if (dist > 34) {
@@ -1082,7 +1256,7 @@ window.Game8Bit = window.Game8Bit || {};
         }
         if (boss.timer <= 0) {
           boss.state = 'windup';
-          boss.timer = boss.phase === 2 ? 0.45 : 0.62;
+          boss.timer = (boss.phase === 2 ? 0.44 : 0.60) * Math.max(0.75, cdScale);
           boss.patternIdx = (boss.patternIdx + 1) % 3;
           boss.telegraph = { ang };
         }
@@ -1091,7 +1265,7 @@ window.Game8Bit = window.Game8Bit || {};
           boss.telegraph = null;
           this._executeBossPattern(game, boss, p);
           boss.state = 'chase';
-          boss.timer = boss.phase === 2 ? 1.15 : 1.55;
+          boss.timer = (boss.phase === 2 ? 1.1 : 1.5) * cdScale;
         }
       }
     },
@@ -1099,23 +1273,21 @@ window.Game8Bit = window.Game8Bit || {};
     _executeBossPattern(game, boss, p) {
       const ang = Math.atan2(p.y - boss.y, p.x - boss.x);
       const pat = boss.patternIdx;
+      const pMult = game.difficulty.projSpeedMult || 1.0;
 
       if (boss.tplId === 'boss_bone_king') {
         if (pat === 0) {
-          // Leque de ossos
           const count = boss.phase === 2 ? 5 : 3;
           for (let i = 0; i < count; i++) {
             const a = ang + (i - (count - 1) / 2) * 0.25;
-            game.projectiles.push({ fromPlayer: false, x: boss.x, y: boss.y, vx: Math.cos(a) * 135, vy: Math.sin(a) * 135, dmg: boss.atk, element: 'physical', radius: 5, life: 2.0, color: P.white });
+            game.projectiles.push({ fromPlayer: false, x: boss.x, y: boss.y, vx: Math.cos(a) * 135 * pMult, vy: Math.sin(a) * 135 * pMult, dmg: boss.atk, element: 'physical', radius: 5, life: 2.0, color: P.white });
           }
         } else if (pat === 1) {
-          // Anel de 8 ossos
           for (let i = 0; i < 8; i++) {
             const a = (Math.PI * 2 * i) / 8;
-            game.projectiles.push({ fromPlayer: false, x: boss.x, y: boss.y, vx: Math.cos(a) * 110, vy: Math.sin(a) * 110, dmg: boss.atk, element: 'physical', radius: 4, life: 2.0, color: P.lightGray });
+            game.projectiles.push({ fromPlayer: false, x: boss.x, y: boss.y, vx: Math.cos(a) * 110 * pMult, vy: Math.sin(a) * 110 * pMult, dmg: boss.atk, element: 'physical', radius: 4, life: 2.0, color: P.lightGray });
           }
         } else {
-          // Invoca 1 Esqueleto (se houver menos de 4 inimigos)
           if (game.currentRoom.activeEnemies.length < 4) {
             const tpl = G.GameData.ENEMIES.skeleton;
             const sx = U.clamp(boss.x + (Math.random() < 0.5 ? -26 : 26), 36, D.ROOM_W * TS - 36);
@@ -1130,27 +1302,42 @@ window.Game8Bit = window.Game8Bit || {};
             });
           }
         }
+      } else if (boss.tplId === 'boss_vespera') {
+        if (pat === 0) {
+          const count = boss.phase === 2 ? 7 : 5;
+          for (let i = 0; i < count; i++) {
+            const a = ang + (i - (count - 1) / 2) * 0.22;
+            game.projectiles.push({ fromPlayer: false, x: boss.x, y: boss.y, vx: Math.cos(a) * 135 * pMult, vy: Math.sin(a) * 135 * pMult, dmg: boss.atk, element: 'poison', radius: 5, life: 1.9, color: P.acid });
+          }
+        } else if (pat === 1) {
+          boss.vx = Math.cos(ang) * 225;
+          boss.vy = Math.sin(ang) * 225;
+          game.hazards.push({ type: 'poison_cloud', x: boss.x, y: boss.y, radius: 26, life: 5.5, tickTimer: 0.1 });
+        } else {
+          for (let i = 0; i < 6; i++) {
+            const a = (Math.PI * 2 * i) / 6 + 0.3;
+            game.projectiles.push({ fromPlayer: false, x: boss.x, y: boss.y, vx: Math.cos(a) * 105 * pMult, vy: Math.sin(a) * 105 * pMult, dmg: Math.round(boss.atk * 0.85), element: 'poison', radius: 5, life: 1.8, color: P.lime });
+          }
+          game.hazards.push({ type: 'poison_cloud', x: p.x, y: p.y, radius: 18, life: 3.5, tickTimer: 0.3 });
+        }
       } else if (boss.tplId === 'boss_ignis_rex') {
         if (pat === 0) {
-          // Investida deixando fogo
           boss.vx = Math.cos(ang) * 240;
           boss.vy = Math.sin(ang) * 240;
           game.hazards.push({ type: 'fire', x: boss.x, y: boss.y, radius: 14, life: 4.5, tickTimer: 0.1 });
         } else if (pat === 1) {
-          // 5 bolas de fogo
           const n = boss.phase === 2 ? 5 : 3;
           for (let i = 0; i < n; i++) {
             const a = ang + (i - (n - 1) / 2) * 0.28;
-            game.projectiles.push({ fromPlayer: false, x: boss.x, y: boss.y, vx: Math.cos(a) * 140, vy: Math.sin(a) * 140, dmg: boss.atk, element: 'fire', radius: 5, life: 1.9, color: P.orange });
+            game.projectiles.push({ fromPlayer: false, x: boss.x, y: boss.y, vx: Math.cos(a) * 140 * pMult, vy: Math.sin(a) * 140 * pMult, dmg: boss.atk, element: 'fire', radius: 5, life: 1.9, color: P.orange });
           }
         } else {
-          // Onda de choque da bigorna
           G.AudioEngine.playSFX('explosion');
           game.shake = 6;
           if (U.dist(boss.x, boss.y, p.x, p.y) <= 56) this.damagePlayer(game, boss.atk, 'fire', boss.x, boss.y, true);
           for (let i = 0; i < 10; i++) {
             const a = (Math.PI * 2 * i) / 10;
-            game.projectiles.push({ fromPlayer: false, x: boss.x, y: boss.y, vx: Math.cos(a) * 100, vy: Math.sin(a) * 100, dmg: Math.round(boss.atk * 0.8), element: 'fire', radius: 4, life: 1.4, color: P.red });
+            game.projectiles.push({ fromPlayer: false, x: boss.x, y: boss.y, vx: Math.cos(a) * 100 * pMult, vy: Math.sin(a) * 100 * pMult, dmg: Math.round(boss.atk * 0.8), element: 'fire', radius: 4, life: 1.4, color: P.red });
           }
         }
       } else if (boss.tplId === 'boss_lyra') {
@@ -1158,36 +1345,58 @@ window.Game8Bit = window.Game8Bit || {};
           this._teleportEnemy(game, boss);
           for (let i = 0; i < 6; i++) {
             const a = ang + (i * Math.PI) / 3;
-            game.projectiles.push({ fromPlayer: false, x: boss.x, y: boss.y, vx: Math.cos(a) * 125, vy: Math.sin(a) * 125, dmg: boss.atk, element: 'ice', radius: 4, life: 1.8, color: P.cyan });
+            game.projectiles.push({ fromPlayer: false, x: boss.x, y: boss.y, vx: Math.cos(a) * 125 * pMult, vy: Math.sin(a) * 125 * pMult, dmg: boss.atk, element: 'ice', radius: 4, life: 1.8, color: P.cyan });
           }
         } else {
           const n = boss.phase === 2 ? 5 : 3;
           for (let i = 0; i < n; i++) {
             const a = ang + (i - (n - 1) / 2) * 0.22;
-            game.projectiles.push({ fromPlayer: false, x: boss.x, y: boss.y, vx: Math.cos(a) * 155, vy: Math.sin(a) * 155, dmg: boss.atk, element: 'lightning', radius: 4, life: 1.8, color: P.yellow });
+            game.projectiles.push({ fromPlayer: false, x: boss.x, y: boss.y, vx: Math.cos(a) * 155 * pMult, vy: Math.sin(a) * 155 * pMult, dmg: boss.atk, element: 'lightning', radius: 4, life: 1.8, color: P.yellow });
+          }
+        }
+      } else if (boss.tplId === 'boss_kaelen') {
+        if (pat === 0) {
+          boss.vx = Math.cos(ang) * 255;
+          boss.vy = Math.sin(ang) * 255;
+          G.AudioEngine.playSFX('dash');
+          for (let i = 0; i < 6; i++) {
+            const a = (Math.PI * 2 * i) / 6;
+            game.projectiles.push({ fromPlayer: false, x: boss.x, y: boss.y, vx: Math.cos(a) * 120 * pMult, vy: Math.sin(a) * 120 * pMult, dmg: Math.round(boss.atk * 0.85), element: 'ice', radius: 5, life: 1.7, color: P.cyan });
+          }
+        } else if (pat === 1) {
+          const n = boss.phase === 2 ? 6 : 4;
+          for (let i = 0; i < n; i++) {
+            const a = ang + (i - (n - 1) / 2) * 0.20;
+            game.projectiles.push({ fromPlayer: false, x: boss.x, y: boss.y, vx: Math.cos(a) * 165 * pMult, vy: Math.sin(a) * 165 * pMult, dmg: boss.atk, element: 'lightning', radius: 5, life: 1.8, color: P.yellow });
+          }
+        } else {
+          this._teleportEnemy(game, boss);
+          for (let i = 0; i < (boss.phase === 2 ? 10 : 8); i++) {
+            const a = (Math.PI * 2 * i) / (boss.phase === 2 ? 10 : 8);
+            game.projectiles.push({ fromPlayer: false, x: boss.x, y: boss.y, vx: Math.cos(a) * 130 * pMult, vy: Math.sin(a) * 130 * pMult, dmg: boss.atk, element: 'ice', radius: 4, life: 1.9, color: P.ice });
           }
         }
       } else {
-        // Malakor, Senhor do Abismo (Alterna todos os elementos)
+        // Malakor, Senhor do Abismo
         const elems = ['arcane', 'fire', 'ice', 'lightning'];
         const el = elems[(boss.patternIdx + (boss.phase === 2 ? 1 : 0)) % elems.length];
         const col = G.ELEMENT_META[el].color;
         if (pat === 0) {
-          const count = boss.phase === 2 ? 12 : 8;
+          const count = boss.phase === 2 ? 14 : 10;
           for (let i = 0; i < count; i++) {
             const a = (Math.PI * 2 * i) / count + game.elapsed;
-            game.projectiles.push({ fromPlayer: false, x: boss.x, y: boss.y, vx: Math.cos(a) * 120, vy: Math.sin(a) * 120, dmg: boss.atk, element: el, radius: 5, life: 2.2, color: col });
+            game.projectiles.push({ fromPlayer: false, x: boss.x, y: boss.y, vx: Math.cos(a) * 125 * pMult, vy: Math.sin(a) * 125 * pMult, dmg: boss.atk, element: el, radius: 5, life: 2.2, color: col });
           }
         } else if (pat === 1) {
           this._teleportEnemy(game, boss);
           for (let i = -2; i <= 2; i++) {
             const a = ang + i * 0.18;
-            game.projectiles.push({ fromPlayer: false, x: boss.x, y: boss.y, vx: Math.cos(a) * 160, vy: Math.sin(a) * 160, dmg: boss.atk, element: el, radius: 5, life: 1.9, color: col });
+            game.projectiles.push({ fromPlayer: false, x: boss.x, y: boss.y, vx: Math.cos(a) * 165 * pMult, vy: Math.sin(a) * 165 * pMult, dmg: boss.atk, element: el, radius: 5, life: 1.9, color: col });
           }
         } else {
-          boss.vx = Math.cos(ang) * 230;
-          boss.vy = Math.sin(ang) * 230;
-          game.hazards.push({ type: 'poison_cloud', x: boss.x, y: boss.y, radius: 24, life: 4.0, tickTimer: 0.1 });
+          boss.vx = Math.cos(ang) * 235;
+          boss.vy = Math.sin(ang) * 235;
+          game.hazards.push({ type: 'poison_cloud', x: boss.x, y: boss.y, radius: 24, life: 4.5, tickTimer: 0.1 });
         }
       }
     },
@@ -1219,6 +1428,24 @@ window.Game8Bit = window.Game8Bit || {};
 
       for (let i = game.projectiles.length - 1; i >= 0; i--) {
         const pr = game.projectiles[i];
+        if (pr.homing && pr.fromPlayer) {
+          let bestEn = null;
+          let bestD = 120;
+          for (const en of (room.activeEnemies || [])) {
+            if (en.hp <= 0) continue;
+            const d = U.dist(pr.x, pr.y, en.x, en.y);
+            if (d < bestD) { bestD = d; bestEn = en; }
+          }
+          if (bestEn) {
+            const spd = Math.hypot(pr.vx, pr.vy) || 160;
+            const targetA = Math.atan2(bestEn.y - pr.y, bestEn.x - pr.x);
+            const curA = Math.atan2(pr.vy, pr.vx);
+            const diff = Math.atan2(Math.sin(targetA - curA), Math.cos(targetA - curA));
+            const newA = curA + U.clamp(diff, -5.5 * dt, 5.5 * dt);
+            pr.vx = Math.cos(newA) * spd;
+            pr.vy = Math.sin(newA) * spd;
+          }
+        }
         pr.x += pr.vx * dt;
         pr.y += pr.vy * dt;
         pr.life -= dt;
@@ -1248,13 +1475,18 @@ window.Game8Bit = window.Game8Bit || {};
 
         if (pr.fromPlayer) {
           let hit = false;
+          pr.hitIds = pr.hitIds || [];
           for (const en of (room.activeEnemies || [])) {
-            if (en.hp <= 0) continue;
+            if (en.hp <= 0 || pr.hitIds.includes(en.id)) continue;
             if (U.dist(pr.x, pr.y, en.x, en.y) <= (en.w * 0.6 + pr.radius)) {
               const ang = Math.atan2(pr.vy, pr.vx);
               this.damageEnemy(game, en, pr.dmg, pr.element, Math.cos(ang) * 75, Math.sin(ang) * 75, pr.isCrit, ang);
-              hit = true;
-              break;
+              if (pr.piercing) {
+                pr.hitIds.push(en.id);
+              } else {
+                hit = true;
+                break;
+              }
             }
           }
           if (hit) {
@@ -1276,6 +1508,7 @@ window.Game8Bit = window.Game8Bit || {};
               pr.color = P.cyan;
               p.mp = Math.min(p.getMaxMp(), p.mp + 8);
               game.addFloatingText(p.x, p.y - 14, 'REFLETIDO!', P.cyan);
+              if (game.recordStat) game.recordStat('totalParries', 1);
               continue;
             }
             this.damagePlayer(game, pr.dmg, pr.element, pr.x, pr.y, true);
@@ -1345,6 +1578,51 @@ window.Game8Bit = window.Game8Bit || {};
 
       // Status ticks do jogador
       this._tickStatuses(game, p, dt);
+      this.updateAllies(game, dt);
+    },
+
+    updateAllies(game, dt) {
+      const allies = game.allies;
+      if (!allies || allies.length === 0) return;
+      const room = game.currentRoom;
+      const enemies = room?.activeEnemies || [];
+      const p = game.player;
+
+      for (let i = allies.length - 1; i >= 0; i--) {
+        const al = allies[i];
+        al.life -= dt;
+        if (al.cd > 0) al.cd -= dt;
+        if (al.life <= 0) {
+          game.spawnParticles(al.x, al.y, P.violet, 6, 40);
+          allies.splice(i, 1);
+          continue;
+        }
+
+        let target = null;
+        let bestD = 180;
+        for (const en of enemies) {
+          if (en.hp <= 0) continue;
+          const d = U.dist(al.x, al.y, en.x, en.y);
+          if (d < bestD) { bestD = d; target = en; }
+        }
+
+        if (target) {
+          const ang = Math.atan2(target.y - al.y, target.x - al.x);
+          al.x += Math.cos(ang) * 92 * dt;
+          al.y += Math.sin(ang) * 92 * dt;
+          if (bestD <= 14 && al.cd <= 0) {
+            al.cd = 0.65;
+            this.damageEnemy(game, target, al.dmg, 'arcane', Math.cos(ang) * 40, Math.sin(ang) * 40, false);
+          }
+        } else {
+          // Orbita suavemente perto do invocador
+          const oa = game.elapsed * 2.5 + i * Math.PI;
+          const tx = p.x + Math.cos(oa) * 18;
+          const ty = p.y + Math.sin(oa) * 18;
+          al.x += (tx - al.x) * Math.min(1, 5 * dt);
+          al.y += (ty - al.y) * Math.min(1, 5 * dt);
+        }
+      }
     }
   };
 

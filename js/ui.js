@@ -47,6 +47,7 @@ window.Game8Bit = window.Game8Bit || {};
       }
       const touchEl = document.getElementById('touch-controls');
       if (touchEl) touchEl.classList.toggle('hidden', !s.touch);
+      document.body.classList.toggle('touch-on', !!s.touch);
     },
 
     _bindTitleEvents() {
@@ -83,6 +84,12 @@ window.Game8Bit = window.Game8Bit || {};
         this.openModal('codex');
       });
 
+      document.getElementById('btn-open-ach-title').addEventListener('click', () => {
+        G.AudioEngine.unlock();
+        G.AudioEngine.playSFX('uiConfirm');
+        this.openModal('achievements');
+      });
+
       document.getElementById('btn-export-save-title').addEventListener('click', () => {
         G.AudioEngine.unlock();
         G.AudioEngine.playSFX('uiConfirm');
@@ -106,6 +113,14 @@ window.Game8Bit = window.Game8Bit || {};
         G.AudioEngine.setSettings(s);
         this.game.saveMeta();
         this._updateMuteBtn();
+      });
+
+      document.getElementById('btn-hud-touch').addEventListener('click', () => {
+        const s = this.game.meta.settings;
+        s.touch = !s.touch;
+        this._applyVisualSettings();
+        this.game.saveMeta();
+        this._updateTouchBtn();
       });
 
       document.getElementById('modal-close-btn').addEventListener('click', () => this.closeAllModals());
@@ -132,26 +147,71 @@ window.Game8Bit = window.Game8Bit || {};
       const bombBtn = document.getElementById('hotbar-bomb');
       if (bombBtn) bombBtn.addEventListener('click', () => this.game.state === 'playing' && G.Combat.placeBomb(this.game));
 
-      // Controles Touch D-Pad
-      document.querySelectorAll('[data-touch-dir]').forEach(btn => {
-        const dir = btn.getAttribute('data-touch-dir');
-        const setDir = (on) => {
-          const t = this.game.touchMove;
-          if (dir === 'up') t.y = on ? -1 : 0;
-          if (dir === 'down') t.y = on ? 1 : 0;
-          if (dir === 'left') t.x = on ? -1 : 0;
-          if (dir === 'right') t.x = on ? 1 : 0;
+      // Joystick Analógico Virtual 360° (Multi-Touch com Pointer Capture)
+      const joyZone = document.getElementById('joy-zone');
+      const joyBase = document.getElementById('joy-base');
+      const joyKnob = document.getElementById('joy-knob');
+      if (joyZone && joyBase && joyKnob) {
+        let joyPtr = null;
+        const updateStick = (clientX, clientY) => {
+          const rect = joyBase.getBoundingClientRect();
+          const cx = rect.left + rect.width / 2;
+          const cy = rect.top + rect.height / 2;
+          const maxR = Math.max(24, rect.width * 0.42);
+          let dx = clientX - cx;
+          let dy = clientY - cy;
+          const dist = Math.hypot(dx, dy);
+          if (dist > maxR) {
+            dx = (dx / dist) * maxR;
+            dy = (dy / dist) * maxR;
+          }
+          joyKnob.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px)`;
+          const norm = dist / maxR;
+          if (norm < 0.14) {
+            this.game.touchMove.x = 0;
+            this.game.touchMove.y = 0;
+          } else {
+            // Normaliza mantendo direção exata em 360 graus
+            this.game.touchMove.x = dx / dist;
+            this.game.touchMove.y = dy / dist;
+          }
         };
-        btn.addEventListener('pointerdown', (e) => { e.preventDefault(); setDir(true); });
-        btn.addEventListener('pointerup', () => setDir(false));
-        btn.addEventListener('pointerleave', () => setDir(false));
-      });
+        const resetStick = (e) => {
+          if (joyPtr !== null && e.pointerId !== undefined && e.pointerId !== joyPtr) return;
+          joyPtr = null;
+          joyKnob.style.transform = 'translate(0px, 0px)';
+          this.game.touchMove.x = 0;
+          this.game.touchMove.y = 0;
+          joyBase.classList.remove('active');
+        };
+        joyZone.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          G.AudioEngine.unlock();
+          if (joyPtr !== null) return;
+          joyPtr = e.pointerId;
+          if (joyZone.setPointerCapture) try { joyZone.setPointerCapture(e.pointerId); } catch (_) {}
+          joyBase.classList.add('active');
+          updateStick(e.clientX, e.clientY);
+        });
+        joyZone.addEventListener('pointermove', (e) => {
+          if (e.pointerId !== joyPtr) return;
+          e.preventDefault();
+          updateStick(e.clientX, e.clientY);
+        });
+        joyZone.addEventListener('pointerup', resetStick);
+        joyZone.addEventListener('pointercancel', resetStick);
+        joyZone.addEventListener('lostpointercapture', resetStick);
+      }
 
       document.querySelectorAll('[data-touch-act]').forEach(btn => {
         const act = btn.getAttribute('data-touch-act');
+        let btnPtr = null;
         btn.addEventListener('pointerdown', (e) => {
           e.preventDefault();
           G.AudioEngine.unlock();
+          btnPtr = e.pointerId;
+          if (btn.setPointerCapture) try { btn.setPointerCapture(e.pointerId); } catch (_) {}
+          btn.classList.add('pressed');
           if (this.game.state !== 'playing') return;
           if (act === 'atk') G.Combat.triggerAttack(this.game);
           else if (act === 'dash') G.Combat.triggerDash(this.game);
@@ -160,9 +220,15 @@ window.Game8Bit = window.Game8Bit || {};
           else if (act === 'bomb') G.Combat.placeBomb(this.game);
           else if (act === 'use') this.game.interact();
         });
-        btn.addEventListener('pointerup', () => {
-          if (act === 'parry') G.Combat.triggerBlockEnd(this.game);
-        });
+        const releaseBtn = (e) => {
+          if (btnPtr !== null && e.pointerId !== undefined && e.pointerId !== btnPtr) return;
+          btnPtr = null;
+          btn.classList.remove('pressed');
+          if (act === 'parry' && this.game.player) G.Combat.triggerBlockEnd(this.game);
+        };
+        btn.addEventListener('pointerup', releaseBtn);
+        btn.addEventListener('pointercancel', releaseBtn);
+        btn.addEventListener('lostpointercapture', releaseBtn);
       });
     },
 
@@ -172,6 +238,10 @@ window.Game8Bit = window.Game8Bit || {};
       document.getElementById('title-souls-count').textContent = this.game.meta.souls;
       document.getElementById('title-best-floor').textContent = this.game.meta.bestFloor;
       document.getElementById('title-wins').textContent = this.game.meta.wins;
+      const totalAch = G.GameData.ACHIEVEMENTS.length;
+      const unlockedAch = Object.keys(this.game.meta.achievements || {}).length;
+      const achEl = document.getElementById('title-ach-count');
+      if (achEl) achEl.textContent = `${unlockedAch}/${totalAch}`;
 
       const contBtn = document.getElementById('btn-continue-run');
       contBtn.classList.toggle('hidden', !this.game.hasSavedRun());
@@ -220,8 +290,10 @@ window.Game8Bit = window.Game8Bit || {};
       for (const diff of Object.values(G.GameData.DIFFICULTIES)) {
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'pixel-btn-choice' + (this.selectedDiff === diff.id ? ' selected' : '');
-        btn.innerHTML = `<b>${diff.name}</b><small>${diff.desc}</small>`;
+        btn.className = 'pixel-btn-choice'
+          + (diff.id === 'descomunal' ? ' diff-descomunal' : '')
+          + (this.selectedDiff === diff.id ? ' selected' : '');
+        btn.innerHTML = `<b>${diff.name} <span class="xp-tag">XP ${diff.xpMult}x</span></b><small>${diff.desc}</small>`;
         btn.addEventListener('click', () => {
           G.AudioEngine.unlock();
           G.AudioEngine.playSFX('uiMove');
@@ -237,6 +309,7 @@ window.Game8Bit = window.Game8Bit || {};
       document.getElementById('screen-game').classList.remove('hidden');
       this.closeAllModals();
       this._updateMuteBtn();
+      this._updateTouchBtn();
       this.dirty = true;
       this.updateHUD(true);
     },
@@ -244,6 +317,11 @@ window.Game8Bit = window.Game8Bit || {};
     _updateMuteBtn() {
       const btn = document.getElementById('btn-hud-mute');
       if (btn) btn.textContent = this.game.meta.settings.muted ? 'SOM: OFF' : 'SOM: ON';
+    },
+
+    _updateTouchBtn() {
+      const btn = document.getElementById('btn-hud-touch');
+      if (btn) btn.textContent = this.game.meta.settings.touch ? 'TOUCH: ON' : 'TOUCH: OFF';
     },
 
     updateHUD(force = false) {
@@ -275,6 +353,8 @@ window.Game8Bit = window.Game8Bit || {};
       document.getElementById('hud-keys').textContent = p.keys;
       document.getElementById('hud-bombs').textContent = p.bombs;
       document.getElementById('hud-bosskey').classList.toggle('hidden', !p.hasBossKey);
+      const ohEl = document.getElementById('hud-onehit');
+      if (ohEl) ohEl.classList.toggle('hidden', !this.game.difficulty.oneHitDeath);
 
       // Hotbar
       const countOf = (id) => p.inventory.filter(it => it.id === id).reduce((s, it) => s + (it.qty || 1), 0);
@@ -306,23 +386,23 @@ window.Game8Bit = window.Game8Bit || {};
       ctx.fillRect(0, 0, cv.width, cv.height);
 
       const rooms = this.game.dungeon.rooms;
-      const cellW = 14;
-      const cellH = 10;
+      const cellW = 12;
+      const cellH = 9;
       const cur = this.game.currentRoom;
 
       for (const r of Object.values(rooms)) {
         if (!r.revealed && !r.visited) continue;
         if (r.type === 'secret' && !r.revealed) continue;
 
-        const rx = r.gx * 16 + 4;
-        const ry = r.gy * 12 + 4;
+        const rx = r.gx * 14 + 3;
+        const ry = r.gy * 11 + 2;
 
         // Conexões
         ctx.fillStyle = P.gray;
         for (const [dk, nb] of Object.entries(r.neighbors)) {
           if (nb.lock === 'secret' && !rooms[nb.roomId]?.revealed) continue;
           if (dk === 'E') ctx.fillRect(rx + cellW, ry + 4, 2, 2);
-          if (dk === 'S') ctx.fillRect(rx + 6, ry + cellH, 2, 2);
+          if (dk === 'S') ctx.fillRect(rx + 5, ry + cellH, 2, 2);
         }
 
         let fill = r.visited ? '#343854' : '#1b1d2c';
@@ -332,6 +412,7 @@ window.Game8Bit = window.Game8Bit || {};
         else if (r.type === 'forge') fill = P.blue;
         else if (r.type === 'treasure') fill = P.gold;
         else if (r.type === 'shrine') fill = P.purple;
+        else if (r.type === 'puzzle') fill = r.puzzleSolved ? P.darkGreen : '#244858';
         else if (r.type === 'secret') fill = P.violet;
 
         ctx.fillStyle = fill;
@@ -347,8 +428,9 @@ window.Game8Bit = window.Game8Bit || {};
         else if (r.type === 'forge') { sym = 'F'; col = P.cyan; }
         else if (r.type === 'treasure') { sym = 'T'; col = P.gold; }
         else if (r.type === 'shrine') { sym = 'S'; col = P.violet; }
+        else if (r.type === 'puzzle') { sym = '?'; col = P.cyan; }
         else if (r.hasBossKey && !this.game.player.hasBossKey && !r.cleared) { sym = 'K'; col = P.gold; }
-        if (sym) G.drawPixelText(ctx, sym, rx + 7, ry + 3, col, P.black, 'center', 1);
+        if (sym) G.drawPixelText(ctx, sym, rx + 6, ry + 2, col, P.black, 'center', 1);
       }
     },
 
@@ -402,6 +484,9 @@ window.Game8Bit = window.Game8Bit || {};
       } else if (name === 'altar') {
         titleEl.textContent = 'ALTAR DAS ALMAS ANCESTRAIS';
         this._renderAltarModal(bodyEl);
+      } else if (name === 'achievements') {
+        titleEl.textContent = 'CONQUISTAS DO ABISMO';
+        this._renderAchievementsModal(bodyEl);
       } else if (name === 'pause') {
         titleEl.textContent = 'PAUSA & CONFIGURAÇÕES';
         this._renderPauseModal(bodyEl);
@@ -547,11 +632,15 @@ window.Game8Bit = window.Game8Bit || {};
     _itemSummary(it) {
       if (it.slot === 'consumable') return it.desc || 'Consumível';
       const parts = [];
-      if (it.atk) parts.push(`+${it.atk + (it.upgrade || 0) * 3} ATQ`);
-      if (it.mag) parts.push(`+${it.mag + (it.upgrade || 0) * 3} MAG`);
+      const totAtk = (it.atk || 0) + (it.bonusAtk || 0);
+      const totMag = (it.mag || 0) + (it.bonusMag || 0);
+      if (totAtk) parts.push(`+${totAtk + (it.atk ? (it.upgrade || 0) * 3 : 0)} ATQ`);
+      if (totMag) parts.push(`+${totMag + (it.mag ? (it.upgrade || 0) * 3 : 0)} MAG`);
       if (it.def) parts.push(`+${it.def + (it.upgrade || 0) * 2} DEF`);
-      if (it.bonusHp) parts.push(`+${it.bonusHp} HP`);
+      if (it.bonusHp) parts.push(`${it.bonusHp > 0 ? '+' : ''}${it.bonusHp} HP`);
       if (it.bonusMp) parts.push(`+${it.bonusMp} MP`);
+      if (it.bonusCrit) parts.push(`+${Math.round(it.bonusCrit * 100)}% CRIT`);
+      if (it.bonusSpeed) parts.push(`+${it.bonusSpeed} VEL`);
       if (it.element && it.element !== 'physical') parts.push(G.ELEMENT_META[it.element].name);
       return parts.join(' | ') || it.desc || 'Equipamento';
     },
@@ -657,6 +746,7 @@ window.Game8Bit = window.Game8Bit || {};
         if (!w || w.upgrade >= 5 || p.gold < wCostGold) return;
         p.gold -= wCostGold;
         w.upgrade += 1;
+        this.game.recordStat('itemsForged', 1);
         G.AudioEngine.playSFX('craft');
         this.dirty = true;
         this._renderForgeModal(root);
@@ -666,6 +756,7 @@ window.Game8Bit = window.Game8Bit || {};
         if (!a || a.upgrade >= 5 || p.gold < aCostGold) return;
         p.gold -= aCostGold;
         a.upgrade += 1;
+        this.game.recordStat('itemsForged', 1);
         G.AudioEngine.playSFX('craft');
         this.dirty = true;
         this._renderForgeModal(root);
@@ -678,6 +769,7 @@ window.Game8Bit = window.Game8Bit || {};
           p.gold -= 20;
           p.shards[el] -= 2;
           w.element = el;
+          this.game.recordStat('itemsForged', 1);
           G.AudioEngine.playSFX('craft');
           this.dirty = true;
           this._renderForgeModal(root);
@@ -700,7 +792,9 @@ window.Game8Bit = window.Game8Bit || {};
           else if (r.type === 'loot') {
             const it = G.GameData.generateProceduralLoot(this.game.rng, this.game.floor, r.slot, r.minRarity);
             this.game._addStackItemRaw(p, it);
+            if (it.rarity === 'lendario') this.game.unlockAchievement('collector');
           }
+          this.game.recordStat('itemsForged', 1);
           G.AudioEngine.playSFX('craft');
           this.dirty = true;
           this._renderForgeModal(root);
@@ -800,12 +894,13 @@ window.Game8Bit = window.Game8Bit || {};
       });
     },
 
-    // --- CÓDICE & QUÍMICA ELEMENTAL ---
+    // --- CÓDICE, HISTÓRIA & QUÍMICA ELEMENTAL ---
     _renderCodexModal(root) {
       const tabs = `
         <div class="tab-bar">
           <button type="button" class="pixel-btn ${this.codexTab === 'chemistry' ? 'primary' : ''}" data-ctab="chemistry">Química & Combate</button>
           <button type="button" class="pixel-btn ${this.codexTab === 'bestiary' ? 'primary' : ''}" data-ctab="bestiary">Bestiário</button>
+          <button type="button" class="pixel-btn ${this.codexTab === 'story' ? 'primary' : ''}" data-ctab="story">Crônica & História</button>
           <button type="button" class="pixel-btn ${this.codexTab === 'controls' ? 'primary' : ''}" data-ctab="controls">Controles</button>
         </div>`;
 
@@ -834,16 +929,36 @@ window.Game8Bit = window.Game8Bit || {};
               <p>${kills > 0 ? f.lore : 'Criatura ainda não catalogada.'}</p>
             </div>`;
         }).join('') + `</div>`;
+      } else if (this.codexTab === 'story') {
+        const bestFloor = this.game.meta.bestFloor || 1;
+        const loreFound = this.game.meta.loreFound || {};
+        const chHtml = G.GameData.STORY_CHAPTERS.map(ch => {
+          const open = bestFloor >= ch.floor || this.game.meta.wins > 0;
+          return `
+            <div class="codex-card ${open ? '' : 'locked-entry'}" style="border-color:${open ? P.gold : 'var(--border)'}">
+              <b style="color:${open ? P.gold : P.gray}">${open ? ch.title : `Capítulo ${ch.floor} — Bloqueado`}</b>
+              <p>${open ? ch.text : `Alcance o Andar ${ch.floor} para desbloquear este capítulo da Crônica.`}</p>
+            </div>`;
+        }).join('');
+        const fragHtml = G.GameData.LORE_FRAGMENTS.map(f => {
+          const found = !!loreFound[f.id];
+          return `
+            <div class="codex-card ${found ? '' : 'locked-entry'}">
+              <b style="color:${found ? P.cyan : P.gray}">${found ? `${f.title} (Andar ${f.floor})` : `Tábua Antiga #${f.id.replace('lore_', '')}`}</b>
+              <p>${found ? f.text : 'Leia esta tábua rúnica nas salas do Andar ' + f.floor + '.'}</p>
+            </div>`;
+        }).join('');
+        content = `<div class="story-subhead">CAPÍTULOS DA JORNADA (${Math.min(6, bestFloor)}/6)</div><div class="codex-grid">${chHtml}</div><div class="story-subhead">TÁBUAS ANTIGAS DECIFRADAS (${Object.keys(loreFound).length}/${G.GameData.LORE_FRAGMENTS.length})</div><div class="codex-grid">${fragHtml}</div>`;
       } else {
         content = `
           <div class="controls-list">
-            <div><b>WASD / Setas:</b> Mover herói (e empurrar blocos em enigmas)</div>
-            <div><b>J / Z / Clique Esquerdo:</b> Ataque Primário (Espada/Cajado/Arco/Adagas)</div>
-            <div><b>Espaço (segurar/tocar):</b> Escudo — toque no instante do impacto para <b>PARRY!</b></div>
+            <div><b>WASD / Setas (ou Joystick Touch):</b> Mover herói (e empurrar blocos em enigmas)</div>
+            <div><b>J / Z / Clique Esquerdo:</b> Ataque Primário (Espada/Lança/Martelo/Foice/Grimório/Arco/Besta)</div>
+            <div><b>Espaço / Botão PARRY:</b> Escudo — toque no instante do impacto para <b>PARRY!</b> (anula dano em Descomunal!)</div>
             <div><b>K / X / Shift:</b> Esquiva (Dash) com invulnerabilidade</div>
             <div><b>L / Q / Clique Direito:</b> Habilidade Especial da Classe</div>
             <div><b>B / V:</b> Colocar Bomba (explode inimigos e abre Paredes Rachadas!)</div>
-            <div><b>E / Enter:</b> Interagir (Baús, Mercador, Forja, Fogueira, Santuário, Tábuas)</div>
+            <div><b>E / Enter:</b> Interagir (Baús, Mercador, Forja, Fogueira, Santuário, Tábuas, Reset de Enigma)</div>
             <div><b>1, 2, 3, 4:</b> Poção de Vida, Éter, Elixir, Pergaminho Mágico</div>
             <div><b>I / Tab:</b> Mochila & Equipamento | <b>C:</b> Códice | <b>Esc:</b> Pausa</div>
           </div>`;
@@ -857,6 +972,42 @@ window.Game8Bit = window.Game8Bit || {};
           this._renderCodexModal(root);
         });
       });
+    },
+
+    // --- CONQUISTAS (ACHIEVEMENTS) ---
+    _renderAchievementsModal(root) {
+      const meta = this.game.meta;
+      const achMap = meta.achievements || {};
+      const st = meta.statsTotal || {};
+      const all = G.GameData.ACHIEVEMENTS;
+      const unlockedCount = all.filter(a => !!achMap[a.id]).length;
+
+      const listHtml = all.map(a => {
+        const done = !!achMap[a.id];
+        const sp = G.SpriteBank.getIcon(a.icon);
+        let progHtml = '';
+        if (a.stat && a.target) {
+          const cur = Math.min(a.target, st[a.stat] || 0);
+          progHtml = `<small class="ach-prog">Progresso: ${done ? a.target : cur}/${a.target}</small>`;
+        }
+        return `
+          <div class="codex-card ach-card ${done ? 'ach-done' : 'locked-entry'}">
+            <div class="codex-head">
+              <img src="${sp}" class="pixel-icon-md">
+              <div>
+                <b>${done ? '★ ' : ''}${a.name}</b>
+                <small style="color:${done ? P.lime : P.gold}">Recompensa: +${a.reward} Almas</small>
+              </div>
+            </div>
+            <p>${a.desc}</p>
+            ${progHtml}
+          </div>`;
+      }).join('');
+
+      root.innerHTML = `
+        <div class="forge-header">Conquistas Desbloqueadas: <b style="color:${P.gold}">${unlockedCount} / ${all.length}</b> • Abates Totais: <b>${st.totalKills || 0}</b> • Parrys: <b>${st.totalParries || 0}</b></div>
+        <div class="codex-grid">${listHtml}</div>
+      `;
     },
 
     // --- ALTAR ANCESTRAL (META-PROGRESSÃO) ---
@@ -946,6 +1097,7 @@ window.Game8Bit = window.Game8Bit || {};
       document.getElementById('opt-touch').addEventListener('change', (e) => {
         s.touch = e.target.checked;
         this._applyVisualSettings();
+        this._updateTouchBtn();
         this.game.saveMeta();
       });
       document.getElementById('btn-pause-resume').addEventListener('click', () => this.closeAllModals());
@@ -1364,7 +1516,7 @@ window.Game8Bit = window.Game8Bit || {};
       const st = this.game.stats;
       document.getElementById('modal-body').innerHTML = `
         <div class="end-summary">
-          <p class="end-sub">Você conquistou os 4 Andares da Cidadela e purificou a Coroa Partida!</p>
+          <p class="end-sub">Você conquistou os 6 Andares da Cidadela e purificou a Coroa Partida!</p>
           <div class="stats-table">
             <div>Classe: <b>${this.game.player.classDef.name}</b></div>
             <div>Dificuldade: <b>${this.game.difficulty.name}</b></div>
@@ -1373,7 +1525,7 @@ window.Game8Bit = window.Game8Bit || {};
           </div>
           <div class="soul-reward">+${souls} Almas Ancestrais Conquistadas!</div>
           <div class="insp-actions">
-            <button type="button" id="btn-endless" class="pixel-btn warn">ABISMO INFINITO (ANDAR 5+)</button>
+            <button type="button" id="btn-endless" class="pixel-btn warn">ABISMO INFINITO (ANDAR 7+)</button>
             <button type="button" id="btn-vic-title" class="pixel-btn primary">ENCERRAR COM HONRA</button>
           </div>
         </div>

@@ -114,17 +114,19 @@ window.Game8Bit = window.Game8Bit || {};
   }
 
   function generateFloor(rng, floorNum, difficultyCfg) {
-    const GRID = 7;
+    const GRID = 8;
     const biomeIdx = (floorNum - 1) % G.GameData.BIOMES.length;
     const biome = G.GameData.BIOMES[biomeIdx];
-    const loopScale = 1 + Math.floor((floorNum - 1) / G.GameData.BIOMES.length) * 0.65;
-    const targetRooms = Math.min(15, 8 + floorNum * 2);
+    const loopScale = 1 + Math.floor((floorNum - 1) / G.GameData.BIOMES.length) * 0.75;
+    const floorHpScale = Math.pow(1.24, floorNum - 1);
+    const floorDmgScale = Math.pow(1.14, floorNum - 1);
+    const targetRooms = Math.min(24, 9 + floorNum * 2 + (difficultyCfg.roomBonus || 0));
 
     const grid = {};
     const keyOf = (gx, gy) => `${gx},${gy}`;
 
-    const startGx = 3;
-    const startGy = 3;
+    const startGx = 4;
+    const startGy = 4;
 
     const makeRoomObj = (gx, gy, type) => ({
       id: keyOf(gx, gy),
@@ -138,10 +140,18 @@ window.Game8Bit = window.Game8Bit || {};
       enemies: [],
       chests: {}, // "x,y" -> { opened, loot, gold, mimic }
       plates: [],
+      puzzleKind: null,
+      puzzleStep: 0,
+      puzzleTimer: 0,
+      puzzleTimerLimit: 0,
+      puzzleBlocks: [],
+      hasPuzzleReset: false,
       puzzleSolved: false,
       shopItems: [],
       shrineUsed: false,
       campfireUsed: false,
+      loreId: null,
+      loreTitle: '',
       loreText: '',
       visited: false,
       cleared: false,
@@ -262,8 +272,17 @@ window.Game8Bit = window.Game8Bit || {};
     const shopRoom = assignSpecial('shop');
     const forgeRoom = assignSpecial('forge');
     const shrineRoom = assignSpecial('shrine');
-    const puzzleRoom = assignSpecial('puzzle');
     const treasureRoom = assignSpecial('treasure');
+
+    const puzzleCount = Math.max(1, difficultyCfg.puzzleRooms || 1);
+    const puzzleKinds = ['blocks', 'sequence', 'timed'];
+    for (let pi = 0; pi < puzzleCount; pi++) {
+      const pr = assignSpecial('puzzle');
+      if (!pr) break;
+      const diffId = difficultyCfg.id || 'normal';
+      if (diffId === 'normal') pr.puzzleKind = pi === 0 && floorNum % 2 === 0 ? 'sequence' : 'blocks';
+      else pr.puzzleKind = puzzleKinds[(pi + floorNum) % puzzleKinds.length];
+    }
 
     // Trancar Sala do Tesouro (se for folha para não bloquear avanço!)
     if (treasureRoom) {
@@ -287,7 +306,7 @@ window.Game8Bit = window.Game8Bit || {};
 
     // Construir geometria 24x15 e entidades de cada sala
     for (const room of Object.values(grid)) {
-      _populateRoom(rng, room, floorNum, loopScale, difficultyCfg);
+      _populateRoom(rng, room, floorNum, loopScale, floorHpScale, floorDmgScale, difficultyCfg);
     }
 
     const startRoom = grid[keyOf(startGx, startGy)];
@@ -324,9 +343,104 @@ window.Game8Bit = window.Game8Bit || {};
     }
   }
 
-  function _populateRoom(rng, room, floorNum, loopScale, diff) {
+  function _buildPuzzleRoom(rng, room, floorNum, diff) {
+    const corners = [[2, 2], [ROOM_W - 3, 2], [2, ROOM_H - 3], [ROOM_W - 3, ROOM_H - 3]];
+    for (const [tx, ty] of corners) setTile(room, tx, ty, TILE.TORCH);
+
+    // Pedestal Rúnico de Reinício (garante 0 soft-locks!)
+    setTile(room, 12, 2, TILE.LORE_TABLET);
+    room.hasPuzzleReset = true;
+
+    const plateCount = Math.max(2, Math.min(4, diff.puzzlePlates || 2));
+    const kind = room.puzzleKind || 'blocks';
+
+    if (kind === 'sequence') {
+      const stepCount = Math.min(5, plateCount + 1);
+      const positions = rng.shuffle([
+        { x: 5, y: 4 },
+        { x: 18, y: 4 },
+        { x: 5, y: 10 },
+        { x: 18, y: 10 },
+        { x: 12, y: 7 },
+        { x: 9, y: 5 },
+        { x: 15, y: 9 }
+      ]).slice(0, stepCount);
+
+      room.plates = positions.map((pos, idx) => ({
+        x: pos.x,
+        y: pos.y,
+        order: idx + 1,
+        active: false
+      }));
+      for (const pl of room.plates) setTile(room, pl.x, pl.y, TILE.PLATE);
+
+      const hazardTile = diff.id === 'normal' ? TILE.WATER : (diff.id === 'veteran' ? TILE.SPIKES : TILE.LAVA);
+      if (diff.id !== 'normal') {
+        [[8, 7], [15, 7], [12, 4], [12, 10]].forEach(([hx, hy]) => {
+          if (getTile(room, hx, hy) !== TILE.PLATE) setTile(room, hx, hy, hazardTile);
+        });
+      }
+      room.loreTitle = 'ENIGMA DE SEQUÊNCIA';
+      room.loreText = `Pise nas ${stepCount} runas na ordem numérica [1 -> ${stepCount}]. Se precisar reiniciar, aperte [E] na pedra rúnica.`;
+    } else if (kind === 'timed') {
+      const switchCount = Math.min(4, plateCount + (diff.id === 'normal' ? 1 : 0));
+      const positions = [
+        { x: 5, y: 4 },
+        { x: 18, y: 4 },
+        { x: 5, y: 10 },
+        { x: 18, y: 10 }
+      ].slice(0, switchCount);
+
+      room.plates = positions.map((pos, idx) => ({
+        x: pos.x,
+        y: pos.y,
+        order: idx + 1,
+        active: false
+      }));
+      for (const pl of room.plates) setTile(room, pl.x, pl.y, TILE.PLATE);
+
+      room.puzzleTimerLimit = diff.id === 'descomunal' ? 11.5 : (diff.id === 'nightmare' ? 13.0 : 16.0);
+      room.puzzleTimer = 0;
+
+      [[10, 6], [13, 6], [10, 8], [13, 8]].forEach(([wx, wy]) => setTile(room, wx, wy, TILE.WALL));
+      if (diff.id === 'nightmare' || diff.id === 'descomunal') {
+        [[7, 7], [16, 7]].forEach(([sx, sy]) => setTile(room, sx, sy, TILE.SPIKES));
+      }
+      room.loreTitle = 'ENIGMA TEMPORIZADO';
+      room.loreText = `Ative todas as ${switchCount} runas antes do tempo (${room.puzzleTimerLimit.toFixed(0)}s) acabar!`;
+    } else {
+      // Blocos + Placas (2 a 4 blocos sempre com folga para empurrar)
+      const pairs = [
+        { b: { x: 8, y: 7 }, p: { x: 6, y: 4 } },
+        { b: { x: 15, y: 7 }, p: { x: 17, y: 10 } },
+        { b: { x: 9, y: 10 }, p: { x: 6, y: 10 } },
+        { b: { x: 14, y: 4 }, p: { x: 17, y: 4 } }
+      ].slice(0, plateCount);
+
+      room.puzzleBlocks = pairs.map(pr => ({ x: pr.b.x, y: pr.b.y }));
+      room.plates = pairs.map(pr => ({ x: pr.p.x, y: pr.p.y }));
+      for (const pr of pairs) {
+        setTile(room, pr.b.x, pr.b.y, TILE.BLOCK);
+        setTile(room, pr.p.x, pr.p.y, TILE.PLATE);
+      }
+
+      if (plateCount >= 3) {
+        setTile(room, 11, 6, TILE.WALL);
+        setTile(room, 12, 8, TILE.WALL);
+      }
+      if (diff.id === 'nightmare' || diff.id === 'descomunal') {
+        setTile(room, 11, 8, TILE.SPIKES);
+        setTile(room, 12, 6, TILE.SPIKES);
+      }
+      room.loreTitle = 'ENIGMA DOS BLOCOS';
+      room.loreText = `Empurre os ${plateCount} blocos até as placas. Travou um bloco? Aperte [E] na pedra rúnica ao norte para resetar!`;
+    }
+  }
+
+  function _populateRoom(rng, room, floorNum, loopScale, floorHpScale, floorDmgScale, diff) {
     room.tiles = createEmptyGrid(rng);
     const biome = room.biome;
+    const shopMult = diff.shopMult || 1.0;
 
     // Tochas nos cantos da maioria das salas
     const corners = [[2, 2], [ROOM_W - 3, 2], [2, ROOM_H - 3], [ROOM_W - 3, ROOM_H - 3]];
@@ -335,8 +449,12 @@ window.Game8Bit = window.Game8Bit || {};
       room.cleared = true;
       for (const [tx, ty] of corners) setTile(room, tx, ty, TILE.TORCH);
       setTile(room, 12, 4, TILE.LORE_TABLET);
-      room.loreText = `${biome.name}: ${biome.lore}`;
-      // Pequeno baú de suprimentos no Andar 1
+      const frags = G.GameData.LORE_FRAGMENTS.filter(f => f.floor === ((floorNum - 1) % 6) + 1);
+      const frag = frags.length ? rng.pick(frags) : null;
+      room.loreId = frag ? frag.id : null;
+      room.loreTitle = frag ? frag.title : biome.name;
+      room.loreText = frag ? `${frag.text} (${biome.lore})` : `${biome.name}: ${biome.lore}`;
+      // Pequenos barris no Andar 1
       if (floorNum === 1) {
         setTile(room, 9, 7, TILE.BARREL);
         setTile(room, 14, 7, TILE.BARREL);
@@ -348,11 +466,11 @@ window.Game8Bit = window.Game8Bit || {};
       setTile(room, 12, 4, TILE.MERCHANT);
       // Itens à venda
       room.shopItems = [
-        { item: G.GameData.makeTemplateItem('cons_hp_pot'), price: 18 + floorNum * 3, bought: false },
-        { item: G.GameData.makeTemplateItem('cons_mp_pot'), price: 16 + floorNum * 3, bought: false },
-        { type: 'bomb_pack', name: 'Pacote 2 Bombas', icon: 'item_bomb', desc: '+2 Bombas para paredes secretas e dano em área.', price: 22, bought: false },
-        { type: 'key', name: 'Chave de Ferro', icon: 'item_key', desc: 'Abre cofres e portas trancadas.', price: 25, bought: false },
-        { item: G.GameData.generateProceduralLoot(rng, floorNum, null, 'incomum'), price: 48 + floorNum * 14, bought: false }
+        { item: G.GameData.makeTemplateItem('cons_hp_pot'), price: Math.round((18 + floorNum * 4) * shopMult), bought: false },
+        { item: G.GameData.makeTemplateItem('cons_mp_pot'), price: Math.round((16 + floorNum * 3) * shopMult), bought: false },
+        { type: 'bomb_pack', name: 'Pacote 2 Bombas', icon: 'item_bomb', desc: '+2 Bombas para paredes secretas e dano em área.', price: Math.round(22 * shopMult), bought: false },
+        { type: 'key', name: 'Chave de Ferro', icon: 'item_key', desc: 'Abre cofres e portas trancadas.', price: Math.round(25 * shopMult), bought: false },
+        { item: G.GameData.generateProceduralLoot(rng, floorNum, 'weapon', floorNum >= 3 ? 'raro' : 'incomum'), price: Math.round((52 + floorNum * 15) * shopMult), bought: false }
       ];
     } else if (room.type === 'forge') {
       room.cleared = true;
@@ -365,17 +483,17 @@ window.Game8Bit = window.Game8Bit || {};
       setTile(room, 5, 4, TILE.TORCH);
       setTile(room, 18, 4, TILE.TORCH);
       setTile(room, 12, 7, TILE.SHRINE);
+      const frags = G.GameData.LORE_FRAGMENTS.filter(f => f.floor === ((floorNum - 1) % 6) + 1);
+      const frag = frags[1] || frags[0];
+      if (frag) {
+        setTile(room, 12, 3, TILE.LORE_TABLET);
+        room.loreId = frag.id;
+        room.loreTitle = frag.title;
+        room.loreText = frag.text;
+      }
     } else if (room.type === 'puzzle') {
       room.cleared = true;
-      for (const [tx, ty] of corners) setTile(room, tx, ty, TILE.TORCH);
-      // 2 Blocos e 2 Placas de pressão simétricas
-      setTile(room, 8, 7, TILE.BLOCK);
-      setTile(room, 15, 7, TILE.BLOCK);
-      setTile(room, 6, 4, TILE.PLATE);
-      setTile(room, 17, 10, TILE.PLATE);
-      room.plates = [{ x: 6, y: 4 }, { x: 17, y: 10 }];
-      setTile(room, 12, 3, TILE.WATER);
-      setTile(room, 11, 3, TILE.WATER);
+      _buildPuzzleRoom(rng, room, floorNum, diff);
     } else if (room.type === 'treasure') {
       room.cleared = true;
       for (const [tx, ty] of corners) setTile(room, tx, ty, TILE.TORCH);
@@ -383,13 +501,13 @@ window.Game8Bit = window.Game8Bit || {};
       setTile(room, 13, 7, TILE.CHEST);
       room.chests['11,7'] = {
         opened: false,
-        gold: rng.int(24, 45) + floorNum * 10,
-        loot: G.GameData.generateProceduralLoot(rng, floorNum, null, 'raro'),
+        gold: rng.int(26, 48) + floorNum * 12,
+        loot: G.GameData.generateProceduralLoot(rng, floorNum + 1, 'weapon', floorNum >= 4 ? 'epico' : 'raro'),
         mimic: false
       };
       room.chests['13,7'] = {
         opened: false,
-        gold: rng.int(16, 30),
+        gold: rng.int(18, 34) + floorNum * 6,
         loot: G.GameData.generateProceduralLoot(rng, floorNum, 'relic', 'incomum'),
         mimic: false
       };
@@ -400,8 +518,8 @@ window.Game8Bit = window.Game8Bit || {};
       setTile(room, 12, 6, TILE.CHEST);
       room.chests['12,6'] = {
         opened: false,
-        gold: rng.int(40, 75) + floorNum * 15,
-        loot: G.GameData.generateProceduralLoot(rng, floorNum + 1, null, 'epico'),
+        gold: rng.int(45, 85) + floorNum * 16,
+        loot: G.GameData.generateProceduralLoot(rng, floorNum + 2, null, floorNum >= 4 ? 'lendario' : 'epico'),
         mimic: false
       };
       setTile(room, 10, 9, TILE.BARREL);
@@ -417,9 +535,12 @@ window.Game8Bit = window.Game8Bit || {};
         setTile(room, 17, 7, TILE.OIL);
         setTile(room, 5, 4, TILE.BARREL_EXP);
         setTile(room, 18, 10, TILE.BARREL_EXP);
-      } else if (biome.id === 'library') {
+      } else if (biome.id === 'library' || biome.id === 'mire') {
         for (let x = 7; x <= 9; x++) setTile(room, x, 5, TILE.WATER);
         for (let x = 14; x <= 16; x++) setTile(room, x, 9, TILE.WATER);
+      } else if (biome.id === 'glacier') {
+        for (let x = 7; x <= 9; x++) setTile(room, x, 5, TILE.ICE);
+        for (let x = 14; x <= 16; x++) setTile(room, x, 9, TILE.ICE);
       } else {
         setTile(room, 6, 5, TILE.WALL);
         setTile(room, 17, 5, TILE.WALL);
@@ -440,17 +561,15 @@ window.Game8Bit = window.Game8Bit || {};
       setTile(room, 20, 12, TILE.TORCH);
 
       if (pattern === 0) {
-        // 4 pilares + poças centrais
         [[6, 4], [17, 4], [6, 10], [17, 10]].forEach(([x, y]) => setTile(room, x, y, TILE.WALL));
         const haz = rng.pick(biome.hazards);
-        const hTile = haz === 'water' ? TILE.WATER : haz === 'oil' ? TILE.OIL : haz === 'lava' ? TILE.LAVA : TILE.SPIKES;
+        const hTile = haz === 'water' ? TILE.WATER : haz === 'oil' ? TILE.OIL : haz === 'lava' ? TILE.LAVA : haz === 'ice' ? TILE.ICE : TILE.SPIKES;
         for (let x = 10; x <= 13; x++) {
           setTile(room, x, 7, hTile);
         }
         setTile(room, 9, 7, TILE.BARREL_EXP);
       } else if (pattern === 1) {
-        // Corredores com água/óleo e barris explosivos
-        const haz = rng.chance(0.5) ? TILE.WATER : TILE.OIL;
+        const haz = rng.pick(biome.hazards) === 'ice' ? TILE.ICE : (rng.chance(0.5) ? TILE.WATER : TILE.OIL);
         for (let y = 4; y <= 10; y++) {
           if (y !== 7) {
             setTile(room, 8, y, haz);
@@ -460,14 +579,12 @@ window.Game8Bit = window.Game8Bit || {};
         setTile(room, 12, 4, TILE.BARREL_EXP);
         setTile(room, 12, 10, TILE.BARREL);
       } else if (pattern === 2) {
-        // Armadilhas de espinhos + pilares
         [[7, 7], [16, 7], [12, 4], [12, 10]].forEach(([x, y]) => setTile(room, x, y, TILE.SPIKES));
         [[5, 4], [5, 10], [18, 4], [18, 10]].forEach(([x, y]) => setTile(room, x, y, TILE.WALL));
         setTile(room, 10, 6, TILE.OIL);
         setTile(room, 11, 6, TILE.OIL);
       } else if (pattern === 3) {
-        // Arena aberta com poças elementais nos cantos
-        const pool = biome.id === 'library' ? TILE.WATER : biome.id === 'forge' ? TILE.OIL : TILE.WATER;
+        const pool = biome.id === 'glacier' ? TILE.ICE : (biome.id === 'library' || biome.id === 'mire' ? TILE.WATER : TILE.OIL);
         for (let dx = 0; dx < 2; dx++) {
           for (let dy = 0; dy < 2; dy++) {
             setTile(room, 6 + dx, 4 + dy, pool);
@@ -477,7 +594,6 @@ window.Game8Bit = window.Game8Bit || {};
         setTile(room, 8, 5, TILE.BARREL_EXP);
         setTile(room, 15, 9, TILE.BARREL_EXP);
       } else {
-        // Trincheira central
         for (let x = 8; x <= 15; x++) {
           if (x !== 11 && x !== 12) {
             setTile(room, x, 5, TILE.WALL);
@@ -488,31 +604,35 @@ window.Game8Bit = window.Game8Bit || {};
       }
 
       // Chance de Baú bônus (ou Mímico!) numa sala de combate
-      if (rng.chance(0.26)) {
-        const isMimic = floorNum >= 2 && rng.chance(0.28);
+      const chestChance = Math.min(0.45, 0.30 * (diff.lootMult || 1.0));
+      if (rng.chance(chestChance)) {
+        const isMimic = floorNum >= 2 && rng.chance(diff.id === 'descomunal' ? 0.34 : 0.25);
         setTile(room, 12, 3, TILE.CHEST);
         room.chests['12,3'] = {
           opened: false,
-          gold: rng.int(12, 24),
-          loot: rng.chance(0.6) ? G.GameData.generateProceduralLoot(rng, floorNum) : null,
+          gold: rng.int(14, 28) + floorNum * 4,
+          loot: rng.chance(0.78) ? G.GameData.generateProceduralLoot(rng, floorNum) : null,
           mimic: isMimic
         };
       }
 
-      // Spawn de inimigos (evitando portas e tiles sólidos)
-      const count = rng.int(3, Math.min(6, 3 + floorNum));
+      // Spawn de inimigos escalado por andar + dificuldade
+      const spawnBonus = diff.spawnBonus || 0;
+      const minCount = Math.min(7, 3 + Math.floor(floorNum / 2) + spawnBonus);
+      const maxCount = Math.min(9, 4 + Math.floor(floorNum * 0.75) + spawnBonus);
+      const count = rng.int(minCount, Math.max(minCount, maxCount));
       let placed = 0;
       let tries = 0;
-      while (placed < count && tries++ < 80) {
+      while (placed < count && tries++ < 95) {
         const ex = rng.int(4, ROOM_W - 5);
         const ey = rng.int(3, ROOM_H - 4);
         const t = getTile(room, ex, ey);
         if (SOLID_TILES.has(t) || t === TILE.LAVA || t === TILE.SPIKES) continue;
-        // Não spawnar em cima de outro inimigo
         if (room.enemies.some(e => e.tx === ex && e.ty === ey)) continue;
 
         const tplId = rng.pick(biome.enemies);
-        const isElite = (room.hasBossKey && placed === 0) || rng.chance(0.12 * floorNum * diff.lootMult);
+        const eliteChance = Math.min(0.48, (0.09 + 0.04 * floorNum) * (diff.eliteMult || 1.0));
+        const isElite = (room.hasBossKey && placed === 0) || rng.chance(eliteChance);
         room.enemies.push({
           isBoss: false,
           tplId,
@@ -520,8 +640,10 @@ window.Game8Bit = window.Game8Bit || {};
           ty: ey,
           elite: isElite,
           dropsBossKey: room.hasBossKey && placed === 0,
-          hpScale: loopScale * diff.enemyHpMult * (isElite ? 1.55 : 1.0),
-          dmgScale: loopScale * diff.enemyDmgMult * (isElite ? 1.25 : 1.0)
+          hpScale: loopScale * floorHpScale * diff.enemyHpMult * (isElite ? 1.65 : 1.0),
+          dmgScale: loopScale * floorDmgScale * diff.enemyDmgMult * (isElite ? 1.28 : 1.0),
+          speedScale: diff.enemySpeedMult || 1.0,
+          cdScale: diff.enemyCdMult || 1.0
         });
         placed++;
       }

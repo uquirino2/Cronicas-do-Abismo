@@ -235,7 +235,7 @@ img, canvas {
 
 .diff-cards {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 8px;
 }
 .diff-cards .pixel-btn-choice {
@@ -243,8 +243,26 @@ img, canvas {
   flex-direction: column;
   gap: 3px;
 }
-.diff-cards b { color: var(--gold); font-size: 12px; }
+.diff-cards b { color: var(--gold); font-size: 12px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
 .diff-cards small { font-size: 10px; color: var(--muted); }
+.xp-tag {
+  background: #14261c;
+  border: 1px solid var(--lime);
+  color: var(--lime);
+  font-size: 9px;
+  padding: 1px 4px;
+}
+.diff-descomunal {
+  border-color: var(--red) !important;
+  background: #280c14 !important;
+}
+.diff-descomunal b {
+  color: #ff6b6b !important;
+}
+.diff-descomunal.selected {
+  border-color: var(--gold) !important;
+  background: #3a101a !important;
+}
 
 .seed-box {
   display: flex;
@@ -281,12 +299,16 @@ img, canvas {
    ========================================================================== */
 .screen-game {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
   gap: 8px;
+  touch-action: none;
+  overscroll-behavior: none;
+  -webkit-touch-callout: none;
 }
 
 .hud-top, .hud-bottom {
@@ -370,6 +392,12 @@ img, canvas {
   color: var(--gold);
   font-weight: bold;
   animation: pulseGold 1s infinite alternate;
+}
+.cnt-pill.onehit {
+  background: #4a0810;
+  border-color: var(--red);
+  color: #ff7878;
+  font-weight: bold;
 }
 
 @keyframes pulseGold {
@@ -535,41 +563,103 @@ img, canvas {
 .hb-slot.skill { border-color: #3858a8; }
 .hb-slot.bomb { border-color: #a85020; }
 
-/* CONTROLES TOUCH */
+/* AVISO DE ROTAÇÃO PAISAGEM + CONTROLES TOUCH ANALÓGICO */
+.portrait-tip {
+  display: none;
+  width: 100%;
+  background: #2c180c;
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  padding: 5px 10px;
+  font-size: 11px;
+  text-align: center;
+}
+
 .touch-controls {
   position: fixed;
-  bottom: 18px;
-  left: 14px;
-  right: 14px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 10px max(14px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
   display: flex;
   justify-content: space-between;
+  align-items: flex-end;
   pointer-events: none;
-  z-index: 40;
+  z-index: 45;
+  touch-action: none;
 }
-.dpad, .t-actions {
+.joy-zone {
   pointer-events: auto;
-  display: grid;
-  gap: 4px;
+  touch-action: none;
+  width: 130px;
+  height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.dpad {
-  grid-template-areas: ". up ." "left . right" ". down .";
+.joy-base {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: rgba(16, 18, 32, 0.58);
+  border: 2px solid rgba(56, 216, 232, 0.55);
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.7), 2px 2px 0 rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
 }
+.joy-base.active {
+  border-color: var(--cyan);
+  background: rgba(20, 28, 48, 0.78);
+}
+.joy-knob {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #84f4ff, #2888b8);
+  border: 2px solid var(--white);
+  box-shadow: 0 0 8px rgba(56, 216, 232, 0.65);
+  pointer-events: none;
+  transition: transform 0.03s linear;
+}
+
 .t-actions {
-  grid-template-columns: repeat(3, 1fr);
+  pointer-events: auto;
+  touch-action: none;
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 7px;
+  align-items: center;
 }
 .t-btn {
   font-family: var(--font-px);
   font-weight: bold;
   font-size: 11px;
-  padding: 12px;
-  background: rgba(20, 19, 32, 0.85);
+  min-width: 50px;
+  min-height: 46px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: rgba(16, 17, 30, 0.80);
   color: var(--text);
   border: 2px solid var(--cyan);
+  box-shadow: 2px 2px 0 #000;
+  touch-action: none;
 }
-.t-btn.up { grid-area: up; }
-.t-btn.down { grid-area: down; }
-.t-btn.left { grid-area: left; }
-.t-btn.right { grid-area: right; }
+.t-btn.t-atk {
+  min-width: 58px;
+  min-height: 52px;
+  border-color: var(--gold);
+  color: var(--gold);
+  background: rgba(46, 26, 10, 0.86);
+}
+.t-btn.t-parry { border-color: var(--sky); }
+.t-btn.t-skill { border-color: var(--violet); }
+.t-btn.t-bomb { border-color: var(--orange); }
+.t-btn.pressed {
+  transform: scale(0.93) translate(1px, 1px);
+  filter: brightness(1.3);
+}
 
 /* ==========================================================================
    MODAIS
@@ -957,16 +1047,52 @@ img, canvas {
 }
 .muted { color: var(--muted); }
 
-/* RESPONSIVIDADE */
-@media (max-width: 960px) {
-  .hud-side {
-    width: 164px;
-  }
-  .hud-bars { min-width: 185px; }
-  .bar-track { width: 95px; }
+.story-subhead {
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--gold);
+  margin: 10px 0 6px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 3px;
+}
+.ach-card.ach-done {
+  border-color: var(--lime);
+  background: #102418;
+}
+.ach-prog {
+  display: block;
+  margin-top: 5px;
+  font-size: 10px;
+  color: var(--cyan);
 }
 
-@media (max-width: 720px) {
+/* MODO TOUCH ATIVO (EVITA QUALQUER SOBREPOSIÇÃO COM JOYSTICK E BOTÕES) */
+body.touch-on .weapon-box,
+body.touch-on #hotbar-skill,
+body.touch-on #hotbar-bomb,
+body.touch-on .quick-tips {
+  display: none;
+}
+body.touch-on .hud-bottom {
+  justify-content: center;
+  width: auto;
+  max-width: calc(100vw - 320px);
+  padding: 4px 8px;
+}
+
+/* RESPONSIVIDADE DESKTOP/TABLET/MOBILE */
+@media (max-width: 960px) {
+  .class-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .hud-side {
+    width: 150px;
+  }
+  .hud-bars { min-width: 175px; }
+  .bar-track { width: 90px; }
+}
+
+@media (max-width: 720px) and (orientation: portrait) {
   .class-cards, .diff-cards, .modal-two-col, .codex-grid, .blessing-grid {
     grid-template-columns: 1fr;
   }
@@ -977,4 +1103,82 @@ img, canvas {
     flex-direction: row;
   }
   .minimap-box, .quick-tips { flex: 1; }
+  .portrait-tip { display: block; }
+  .hud-bottom { margin-bottom: 136px; }
+}
+
+/* MODO PAISAGEM MOBILE (CONSOLES PORTÁTEIS / CELULAR DEITADO) */
+@media (orientation: landscape) and (max-height: 580px) {
+  .screen-game {
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+    padding: 3px max(8px, env(safe-area-inset-right)) 3px max(8px, env(safe-area-inset-left));
+    gap: 3px;
+    justify-content: flex-start;
+  }
+  .hud-top {
+    padding: 3px 6px;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+  .hud-hero img { width: 20px; height: 20px; }
+  .hud-lvl { font-size: 11px; }
+  .hud-floor { font-size: 9px; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hud-bars { min-width: 125px; gap: 2px; }
+  .bar-row { font-size: 10px; gap: 4px; }
+  .bar-track { width: 64px; height: 8px; }
+  .bar-val { font-size: 9px; min-width: 42px; }
+  .mini-track { width: 58px; height: 3px; }
+  .hud-counters { gap: 4px; }
+  .cnt-pill { padding: 2px 5px; font-size: 10px; }
+  .hud-nav { gap: 3px; }
+  .hud-nav .pixel-btn.sm { padding: 3px 5px; font-size: 10px; }
+
+  .game-mid {
+    flex-direction: row;
+    flex: 1;
+    min-height: 0;
+    gap: 6px;
+    align-items: center;
+    justify-content: center;
+  }
+  .canvas-stage {
+    flex: 0 1 auto;
+    height: 100%;
+    width: auto;
+    max-height: calc(100dvh - 82px);
+    max-width: calc((100dvh - 82px) * 1.6);
+  }
+  .hud-side {
+    width: 96px;
+    align-self: flex-start;
+    gap: 4px;
+  }
+  .quick-tips, .map-legend { display: none; }
+  .minimap-box { padding: 4px; }
+  .minimap-box .side-title { font-size: 9px; margin-bottom: 3px; }
+
+  .hud-bottom {
+    padding: 2px 8px;
+    gap: 6px;
+    justify-content: center;
+    flex-wrap: nowrap;
+  }
+  .weapon-box { display: none; }
+  .hotbar-slots { gap: 4px; flex-wrap: nowrap; }
+  .hb-slot { padding: 2px 6px; font-size: 10px; gap: 4px; }
+
+  .touch-controls { padding: 4px max(10px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); }
+  .joy-zone { width: 112px; height: 112px; }
+  .joy-base { width: 84px; height: 84px; }
+  .joy-knob { width: 36px; height: 36px; }
+  .t-actions { gap: 5px; }
+  .t-btn { min-width: 44px; min-height: 40px; font-size: 10px; padding: 4px 6px; }
+  .t-btn.t-atk { min-width: 52px; min-height: 46px; }
+
+  .modal-window { max-height: 94dvh; }
+  .title-frame { padding: 12px 14px; }
+  .class-cards { grid-template-columns: repeat(3, 1fr); }
 }

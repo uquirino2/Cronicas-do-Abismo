@@ -18,11 +18,35 @@ window.Game8Bit = window.Game8Bit || {};
   const SAVE_PREFIX_RAW = 'CA8B1.';
   const SAVE_PREFIX_ZIP = 'CA8Z1.';
 
+  function detectTouchDevice() {
+    try {
+      return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function createDefaultStatsTotal() {
+    return {
+      totalKills: 0,
+      totalParries: 0,
+      totalReactions: 0,
+      secretsFound: 0,
+      puzzlesSolved: 0,
+      itemsForged: 0,
+      totalBosses: 0
+    };
+  }
+
   function createDefaultMeta() {
     return {
       souls: 0,
       upgrades: {},
       codexEnemies: {},
+      achievements: {},
+      loreFound: {},
+      classesFloor3: {},
+      statsTotal: createDefaultStatsTotal(),
       runs: 0,
       wins: 0,
       bestFloor: 1,
@@ -32,7 +56,7 @@ window.Game8Bit = window.Game8Bit || {};
         muted: false,
         crt: true,
         pixelGrid: false,
-        touch: false
+        touch: detectTouchDevice()
       }
     };
   }
@@ -91,8 +115,10 @@ window.Game8Bit = window.Game8Bit || {};
     hazards: [],
     drops: [],
     bombs: [],
+    allies: [],
     stats: null,
     roomBanner: { text: '', sub: '', timer: 0 },
+    achievementBanner: { name: '', reward: 0, timer: 0 },
 
     // Input
     keys: {},
@@ -133,6 +159,10 @@ window.Game8Bit = window.Game8Bit || {};
         souls: toInt(src.souls, def.souls, 0),
         upgrades: {},
         codexEnemies: {},
+        achievements: {},
+        loreFound: {},
+        classesFloor3: {},
+        statsTotal: createDefaultStatsTotal(),
         runs: toInt(src.runs, def.runs, 0),
         wins: toInt(src.wins, def.wins, 0),
         bestFloor: toInt(src.bestFloor, def.bestFloor, 1),
@@ -148,6 +178,26 @@ window.Game8Bit = window.Game8Bit || {};
         for (const [k, v] of Object.entries(src.codexEnemies)) {
           const n = Number(v);
           if (Number.isFinite(n) && n >= 0) out.codexEnemies[k] = Math.floor(n);
+        }
+      }
+      if (src.achievements && typeof src.achievements === 'object') {
+        for (const [k, v] of Object.entries(src.achievements)) {
+          if (v) out.achievements[k] = typeof v === 'string' ? v : true;
+        }
+      }
+      if (src.loreFound && typeof src.loreFound === 'object') {
+        for (const [k, v] of Object.entries(src.loreFound)) {
+          if (v) out.loreFound[k] = true;
+        }
+      }
+      if (src.classesFloor3 && typeof src.classesFloor3 === 'object') {
+        for (const [k, v] of Object.entries(src.classesFloor3)) {
+          if (v) out.classesFloor3[k] = true;
+        }
+      }
+      if (src.statsTotal && typeof src.statsTotal === 'object') {
+        for (const k of Object.keys(out.statsTotal)) {
+          out.statsTotal[k] = toInt(src.statsTotal[k], 0, 0);
         }
       }
       if (src.settings && typeof src.settings === 'object') {
@@ -281,6 +331,7 @@ window.Game8Bit = window.Game8Bit || {};
         this.hazards = [];
         this.drops = [];
         this.bombs = [];
+        this.allies = [];
         this.keys = {};
         this.state = 'playing';
         G.AudioEngine.unlock();
@@ -521,11 +572,12 @@ window.Game8Bit = window.Game8Bit || {};
 
         level: 1,
         xp: 0,
-        xpNext: 45,
+        xpNext: this.getXpNext(1),
         bonusMaxHp: hpMeta,
         bonusMaxMp: 0,
         bonusAtk: atkMeta,
         bonusMag: atkMeta,
+        bonusSpeed: 0,
         bonusCrit: critMeta,
 
         hp: cls.stats.maxHp + hpMeta,
@@ -552,6 +604,10 @@ window.Game8Bit = window.Game8Bit || {};
           magMult: 1.0,
           flatDef: 0,
           cdr: 0,
+          dashCdr: 0,
+          parryBonus: 0,
+          xpMult: 0,
+          dropBonus: 0,
           lifesteal: 0,
           hpRegen: 0,
           potionMult: 0,
@@ -599,7 +655,7 @@ window.Game8Bit = window.Game8Bit || {};
         },
         getSpeed() {
           const eq = (this.equip.armor?.bonusSpeed || 0) + (this.equip.relic1?.bonusSpeed || 0) + (this.equip.relic2?.bonusSpeed || 0) + (this.equip.weapon?.bonusSpeed || 0);
-          return this.classDef.stats.speed + eq;
+          return this.classDef.stats.speed + (this.bonusSpeed || 0) + eq;
         },
         getCritChance() {
           const eq = (this.equip.weapon?.bonusCrit || 0) + (this.equip.armor?.bonusCrit || 0) + (this.equip.relic1?.bonusCrit || 0) + (this.equip.relic2?.bonusCrit || 0);
@@ -659,6 +715,10 @@ window.Game8Bit = window.Game8Bit || {};
       G.UI.onRunStart();
     },
 
+    getXpNext(level) {
+      return Math.round(70 * Math.pow(Math.max(1, level), 1.55) + 35 * Math.max(0, level - 1));
+    },
+
     _enterFloor(floorNum, isFirst = false) {
       this.floor = floorNum;
       this.player.hasBossKey = false;
@@ -667,17 +727,25 @@ window.Game8Bit = window.Game8Bit || {};
         this.meta.bestFloor = floorNum;
         this.saveMeta();
       }
+      if (floorNum >= 3 && !this.meta.classesFloor3[this.player.classId]) {
+        this.meta.classesFloor3[this.player.classId] = true;
+        this.saveMeta();
+      }
 
       const floorRng = this.rng.fork('floor_' + floorNum);
       this.dungeon = D.generateFloor(floorRng, floorNum, this.difficulty);
       this.enterRoom(this.dungeon.startRoomId, null);
 
       if (!isFirst) {
-        this.player.hp = Math.min(this.player.getMaxHp(), this.player.hp + Math.round(this.player.getMaxHp() * 0.25));
+        const hFrac = (this.difficulty.healScale !== undefined ? this.difficulty.healScale : 1.0) * 0.25;
+        if (hFrac > 0) this.player.hp = Math.min(this.player.getMaxHp(), this.player.hp + Math.round(this.player.getMaxHp() * hFrac));
         this.player.mp = Math.min(this.player.getMaxMp(), this.player.mp + Math.round(this.player.getMaxMp() * 0.4));
       }
-      this.showBanner(this.dungeon.biome.name, `Andar ${floorNum} — Seed: ${this.seed}`);
+      const ch = G.GameData.STORY_CHAPTERS[(floorNum - 1) % G.GameData.STORY_CHAPTERS.length];
+      const subText = ch ? `${ch.title} • ${this.difficulty.name}` : `Andar ${floorNum} — Seed: ${this.seed}`;
+      this.showBanner(this.dungeon.biome.name, subText);
       G.AudioEngine.playMusic(this.dungeon.biome.music);
+      this.checkAchievements();
     },
 
     enterRoom(roomId, fromDir) {
@@ -701,6 +769,7 @@ window.Game8Bit = window.Game8Bit || {};
       this.hazards = [];
       this.drops = [];
       this.bombs = [];
+      this.allies = [];
 
       if (fromDir) {
         const entry = D.getEntryPos(fromDir);
@@ -709,6 +778,10 @@ window.Game8Bit = window.Game8Bit || {};
       } else {
         this.player.x = 12 * TS;
         this.player.y = 8 * TS;
+      }
+
+      if (room.type === 'puzzle' && !room.puzzleSolved) {
+        this.showBanner(room.loreTitle || 'SALA DE ENIGMA', room.loreText || 'Resolva o desafio das runas!');
       }
 
       if (!room.cleared && room.enemies.length > 0) {
@@ -739,6 +812,7 @@ window.Game8Bit = window.Game8Bit || {};
     update(dt) {
       this.elapsed += dt;
       if (this.roomBanner.timer > 0) this.roomBanner.timer -= dt;
+      if (this.achievementBanner.timer > 0) this.achievementBanner.timer -= dt;
 
       if (this.state !== 'playing') return;
 
@@ -756,6 +830,7 @@ window.Game8Bit = window.Game8Bit || {};
       this.spikeActive = this.spikeCycle >= 1.8;
 
       this._updatePlayer(dt);
+      this._updatePuzzleRoom(dt);
       G.Combat.updateEnemies(this, dt);
       G.Combat.updateProjectiles(this, dt);
       G.Combat.updateHazardsAndBombs(this, dt);
@@ -970,18 +1045,99 @@ window.Game8Bit = window.Game8Bit || {};
 
       // Verifica se todas as placas estão cobertas
       if (!room.puzzleSolved && room.plates.length > 0 && room.plates.every(pl => D.getTile(room, pl.x, pl.y) === TILE.BLOCK)) {
-        room.puzzleSolved = true;
-        G.AudioEngine.playSFX('levelUp');
-        D.setTile(room, 12, 7, TILE.CHEST);
-        room.chests['12,7'] = {
-          opened: false,
-          gold: 35 + this.floor * 12,
-          loot: G.GameData.generateProceduralLoot(this.rng, this.floor, null, 'raro'),
-          mimic: false
-        };
-        this.addFloatingText(12 * TS, 6 * TS, 'ENIGMA RESOLVIDO!', P.gold);
+        this._completePuzzle(room);
       }
       return false;
+    },
+
+    _updatePuzzleRoom(dt) {
+      const room = this.currentRoom;
+      if (!room || room.type !== 'puzzle' || room.puzzleSolved) return;
+
+      if (room.puzzleKind === 'timed' && room.puzzleTimer > 0) {
+        room.puzzleTimer -= dt;
+        if (room.puzzleTimer <= 0) {
+          room.puzzleTimer = 0;
+          room.plates.forEach(pl => { pl.active = false; });
+          G.AudioEngine.playSFX('locked');
+          this.addFloatingText(this.player.x, this.player.y - 16, 'TEMPO ESGOTADO!', P.red);
+        }
+      }
+
+      if (room.puzzleKind !== 'sequence' && room.puzzleKind !== 'timed') return;
+
+      const ptx = Math.floor(this.player.x / TS);
+      const pty = Math.floor(this.player.y / TS);
+      const key = `${ptx},${pty}`;
+      if (this._lastPlateKey === key) return;
+      this._lastPlateKey = key;
+
+      const plate = room.plates.find(pl => pl.x === ptx && pl.y === pty);
+      if (!plate) return;
+
+      if (room.puzzleKind === 'sequence') {
+        if (plate.active) return;
+        if (plate.order === (room.puzzleStep || 0) + 1) {
+          plate.active = true;
+          room.puzzleStep = plate.order;
+          G.AudioEngine.playSFX('puzzle');
+          this.addFloatingText(ptx * TS + 8, pty * TS, `RUNA ${plate.order}!`, P.cyan);
+          if (room.puzzleStep >= room.plates.length) {
+            this._completePuzzle(room);
+          }
+        } else {
+          room.plates.forEach(pl => { pl.active = false; });
+          room.puzzleStep = 0;
+          G.AudioEngine.playSFX('locked');
+          this.addFloatingText(ptx * TS + 8, pty * TS, 'ORDEM ERRADA!', P.red);
+        }
+      } else if (room.puzzleKind === 'timed') {
+        if (!plate.active) {
+          plate.active = true;
+          if (room.puzzleTimer <= 0) room.puzzleTimer = room.puzzleTimerLimit || 14;
+          G.AudioEngine.playSFX('puzzle');
+          this.addFloatingText(ptx * TS + 8, pty * TS, 'ATIVADA!', P.cyan);
+          if (room.plates.every(pl => pl.active)) {
+            this._completePuzzle(room);
+          }
+        }
+      }
+    },
+
+    _resetPuzzleRoom(room) {
+      if (!room || room.type !== 'puzzle' || room.puzzleSolved) return;
+      room.puzzleStep = 0;
+      room.puzzleTimer = 0;
+      room.plates.forEach(pl => { pl.active = false; });
+
+      if (!room.puzzleKind || room.puzzleKind === 'blocks') {
+        for (let y = 1; y < D.ROOM_H - 1; y++) {
+          for (let x = 1; x < D.ROOM_W - 1; x++) {
+            if (D.getTile(room, x, y) === TILE.BLOCK) D.setTile(room, x, y, TILE.FLOOR);
+          }
+        }
+        for (const pl of room.plates) D.setTile(room, pl.x, pl.y, TILE.PLATE);
+        for (const b of (room.puzzleBlocks || [])) D.setTile(room, b.x, b.y, TILE.BLOCK);
+      }
+      G.AudioEngine.playSFX('uiConfirm');
+      this.addFloatingText(12 * TS, 4 * TS, 'ENIGMA REINICIADO!', P.cyan);
+    },
+
+    _completePuzzle(room) {
+      if (room.puzzleSolved) return;
+      room.puzzleSolved = true;
+      room.puzzleTimer = 0;
+      G.AudioEngine.playSFX('levelUp');
+      const minRar = (this.difficulty.id === 'nightmare' || this.difficulty.id === 'descomunal') ? 'epico' : 'raro';
+      D.setTile(room, 12, 7, TILE.CHEST);
+      room.chests['12,7'] = {
+        opened: false,
+        gold: Math.round((38 + this.floor * 14) * (this.difficulty.lootMult || 1)),
+        loot: G.GameData.generateProceduralLoot(this.rng, this.floor + 1, null, minRar),
+        mimic: false
+      };
+      this.addFloatingText(12 * TS, 6 * TS, 'ENIGMA RESOLVIDO!', P.gold);
+      this.recordStat('puzzlesSolved', 1);
     },
 
     _onStepStairs() {
@@ -989,14 +1145,20 @@ window.Game8Bit = window.Game8Bit || {};
       this._stairsLock = true;
       setTimeout(() => (this._stairsLock = false), 800);
 
-      if (this.floor === 4) {
-        // Vitória épica ou Abismo Infinito!
+      if (this.floor === 6) {
+        // Vitória da Campanha (6 Andares)! Abismo Infinito liberado após Andar 6
         this.state = 'victory';
         this.meta.wins += 1;
-        const bonusSouls = Math.round(40 * this.difficulty.soulMult);
+        const bonusSouls = Math.round(55 * this.difficulty.soulMult);
         this.player.soulsEarned += bonusSouls;
         this.meta.souls += this.player.soulsEarned;
         this.clearSavedRun();
+
+        this.unlockAchievement('campaign_clear');
+        if (['veteran', 'nightmare', 'descomunal'].includes(this.difficulty.id)) this.unlockAchievement('veteran_clear');
+        if (['nightmare', 'descomunal'].includes(this.difficulty.id)) this.unlockAchievement('nightmare_clear');
+        if (this.difficulty.id === 'descomunal') this.unlockAchievement('descomunal_clear');
+
         this.saveMeta();
         G.AudioEngine.playSFX('victory');
         G.UI.showVictoryModal(this.player.soulsEarned);
@@ -1099,8 +1261,17 @@ window.Game8Bit = window.Game8Bit || {};
           room.shrineUsed = true;
         });
       } else if (t === TILE.LORE_TABLET) {
+        if (room.type === 'puzzle' && room.hasPuzzleReset && !room.puzzleSolved) {
+          this._resetPuzzleRoom(room);
+          return;
+        }
         G.AudioEngine.playSFX('uiConfirm');
-        this.showBanner('TÁBUA ANTIGA', room.loreText || 'Explore cada sala e domine os elementos.');
+        this.showBanner(room.loreTitle || 'TÁBUA ANTIGA', room.loreText || 'Explore cada sala e domine os elementos.');
+        if (room.loreId && !this.meta.loreFound[room.loreId]) {
+          this.meta.loreFound[room.loreId] = true;
+          this.saveMeta();
+          this.checkAchievements();
+        }
       }
     },
 
@@ -1186,19 +1357,26 @@ window.Game8Bit = window.Game8Bit || {};
       }
     },
 
-    gainXp(amount) {
+    gainXp(rawAmount) {
       const p = this.player;
+      const metaXp = (this.meta.upgrades?.meta_xp || 0) * 0.12;
+      const relicXp = (p.equip.relic1?.xpBonus || 0) + (p.equip.relic2?.xpBonus || 0);
+      const mult = (this.difficulty.xpMult || 1.0) * (1 + (p.perks.xpMult || 0) + metaXp + relicXp);
+      const amount = Math.max(1, Math.round(rawAmount * mult));
       p.xp += amount;
+
       while (p.xp >= p.xpNext) {
         p.xp -= p.xpNext;
         p.level += 1;
-        p.xpNext = Math.round(p.xpNext * 1.38 + 20);
-        p.hp = p.getMaxHp();
+        p.xpNext = this.getXpNext(p.level);
+        const hScale = this.difficulty.healScale !== undefined ? this.difficulty.healScale : 1.0;
+        if (hScale >= 1) p.hp = p.getMaxHp();
+        else if (hScale > 0) p.hp = Math.min(p.getMaxHp(), p.hp + Math.round(p.getMaxHp() * hScale));
         p.mp = p.getMaxMp();
         G.AudioEngine.playSFX('levelUp');
         this.addFloatingText(p.x, p.y - 18, `NÍVEL ${p.level}!`, P.yellow);
         this.spawnParticles(p.x, p.y, P.yellow, 20, 80);
-        // A cada nível par, oferece escolha de Bênção!
+        this.checkAchievements();
         if (p.level % 2 === 0 && this.state === 'playing') {
           G.UI.openBlessingModal(null, `NÍVEL ${p.level} ALCANÇADO!`);
         }
@@ -1229,6 +1407,11 @@ window.Game8Bit = window.Game8Bit || {};
       if (item.cureAll) {
         p.statuses = {};
         this.addFloatingText(p.x, p.y - 20, 'PURIFICADO!', P.cyan);
+      }
+      if (item.buffFury) {
+        p.stamina = p.getMaxStamina();
+        p.guaranteedCrit = true;
+        this.addFloatingText(p.x, p.y - 22, 'FÚRIA CRÍTICA!', P.gold);
       }
       if (item.spell) {
         this._castScrollSpell(item.spell);
@@ -1282,6 +1465,14 @@ window.Game8Bit = window.Game8Bit || {};
           G.Combat.damageEnemy(this, en, power * 1.1, 'lightning', 0, 0, true);
           G.Combat.applyStatus(en, 'stun', 1.4, 0);
         }
+      } else if (spell === 'void_implosion') {
+        G.AudioEngine.playSFX('explosion');
+        this.shake = 7;
+        for (const en of (room.activeEnemies || [])) {
+          this.spawnParticles(en.x, en.y, P.violet, 16, 80);
+          G.Combat.damageEnemy(this, en, power * 1.45, 'arcane', 0, 0, true);
+          G.Combat.applyStatus(en, 'stun', 2.0, 0);
+        }
       }
     },
 
@@ -1303,6 +1494,7 @@ window.Game8Bit = window.Game8Bit || {};
       p.hp = Math.min(p.hp, p.getMaxHp());
       p.mp = Math.min(p.mp, p.getMaxMp());
       G.AudioEngine.playSFX('uiConfirm');
+      if (item.rarity === 'lendario') this.unlockAchievement('collector');
       G.UI.dirty = true;
     },
 
@@ -1336,6 +1528,40 @@ window.Game8Bit = window.Game8Bit || {};
         this.meta.codexEnemies[tplId] += 1;
       }
       this.saveMeta();
+    },
+
+    recordStat(key, delta = 1) {
+      if (!this.meta.statsTotal) this.meta.statsTotal = createDefaultStatsTotal();
+      this.meta.statsTotal[key] = (this.meta.statsTotal[key] || 0) + delta;
+      this.checkAchievements();
+      this.saveMeta();
+    },
+
+    unlockAchievement(id) {
+      if (!this.meta.achievements) this.meta.achievements = {};
+      if (this.meta.achievements[id]) return false;
+      const ach = (G.GameData.ACHIEVEMENTS || []).find(a => a.id === id);
+      if (!ach) return false;
+      this.meta.achievements[id] = new Date().toISOString();
+      this.meta.souls += ach.reward || 0;
+      this.saveMeta();
+      G.AudioEngine.playSFX('achievement');
+      this.achievementBanner = { name: ach.name, reward: ach.reward || 0, timer: 3.4 };
+      return true;
+    },
+
+    checkAchievements() {
+      const st = this.meta.statsTotal || {};
+      for (const ach of (G.GameData.ACHIEVEMENTS || [])) {
+        if (this.meta.achievements?.[ach.id]) continue;
+        if (ach.stat && ach.target && (st[ach.stat] || 0) >= ach.target) {
+          this.unlockAchievement(ach.id);
+        }
+      }
+      if (Object.keys(this.meta.loreFound || {}).length >= 6) this.unlockAchievement('lore_scholar');
+      if (Object.keys(this.meta.classesFloor3 || {}).length >= 3) this.unlockAchievement('class_explorer');
+      if (this.player && this.player.level >= 8) this.unlockAchievement('high_level');
+      if (this.meta.bestFloor >= 8) this.unlockAchievement('endless_deep');
     },
 
     triggerGameOver() {
@@ -1485,9 +1711,17 @@ window.Game8Bit = window.Game8Bit || {};
         if (sp) ctx.drawImage(sp, Math.round(b.x - 8), Math.round(b.y - 8));
       }
 
-      // 5. Inimigos
+      // 5. Inimigos & Aliados Espectrais
       for (const en of (room.activeEnemies || [])) {
         this._renderEnemy(ctx, en, animFrame);
+      }
+      for (const al of (this.allies || [])) {
+        const ay = Math.round(al.y + Math.sin(this.elapsed * 8) * 2);
+        const ax = Math.round(al.x);
+        ctx.fillStyle = P.purple;
+        ctx.fillRect(ax - 4, ay - 4, 8, 8);
+        ctx.fillStyle = P.cyan;
+        ctx.fillRect(ax - 2, ay - 2, 4, 4);
       }
 
       // 6. Jogador & Arco de Ataque
@@ -1523,16 +1757,36 @@ window.Game8Bit = window.Game8Bit || {};
         this._renderBossBar(ctx, boss);
       }
 
-      // 12. Banner de sala / andar
+      // 12. Banner de sala / andar & Temporizador de Enigma
+      if (room.type === 'puzzle' && !room.puzzleSolved && room.puzzleKind === 'timed' && room.puzzleTimer > 0) {
+        const bw = 140;
+        const bx = Math.round((CANVAS_W - bw) / 2);
+        const frac = U.clamp(room.puzzleTimer / (room.puzzleTimerLimit || 14), 0, 1);
+        ctx.fillStyle = P.black;
+        ctx.fillRect(bx - 1, 6, bw + 2, 8);
+        ctx.fillStyle = P.cyan;
+        ctx.fillRect(bx, 7, Math.round(bw * frac), 6);
+        G.drawPixelText(ctx, `ENIGMA ${room.puzzleTimer.toFixed(1)}s`, CANVAS_W / 2, 16, P.cyan, P.black, 'center', 1);
+      }
+
       if (this.roomBanner.timer > 0) {
-        ctx.fillStyle = 'rgba(8, 8, 12, 0.82)';
-        ctx.fillRect(52, 16, CANVAS_W - 104, 28);
+        ctx.fillStyle = 'rgba(8, 8, 12, 0.86)';
+        ctx.fillRect(42, 14, CANVAS_W - 84, 30);
         ctx.strokeStyle = P.gold;
-        ctx.strokeRect(52.5, 16.5, CANVAS_W - 105, 27);
-        G.drawPixelText(ctx, this.roomBanner.text, CANVAS_W / 2, 22, P.gold, P.black, 'center', 1);
+        ctx.strokeRect(42.5, 14.5, CANVAS_W - 85, 29);
+        G.drawPixelText(ctx, this.roomBanner.text, CANVAS_W / 2, 20, P.gold, P.black, 'center', 1);
         if (this.roomBanner.sub) {
-          G.drawPixelText(ctx, this.roomBanner.sub, CANVAS_W / 2, 32, P.lightGray, P.black, 'center', 1);
+          G.drawPixelText(ctx, this.roomBanner.sub.slice(0, 56), CANVAS_W / 2, 31, P.lightGray, P.black, 'center', 1);
         }
+      }
+
+      // 13. Toast de Conquista Desbloqueada
+      if (this.achievementBanner.timer > 0) {
+        ctx.fillStyle = 'rgba(16, 36, 24, 0.92)';
+        ctx.fillRect(56, CANVAS_H - 34, CANVAS_W - 112, 24);
+        ctx.strokeStyle = P.lime;
+        ctx.strokeRect(56.5, CANVAS_H - 33.5, CANVAS_W - 113, 23);
+        G.drawPixelText(ctx, `CONQUISTA: ${this.achievementBanner.name} (+${this.achievementBanner.reward} ALMAS)`, CANVAS_W / 2, CANVAS_H - 25, P.gold, P.black, 'center', 1);
       }
 
       ctx.restore();
@@ -1622,10 +1876,15 @@ window.Game8Bit = window.Game8Bit || {};
               ctx.fillRect(px + 10, py + 10, 2, 2);
             }
           } else if (t === TILE.PLATE) {
-            ctx.fillStyle = P.gray;
+            const pl = (room.plates || []).find(item => item.x === tx && item.y === ty);
+            const active = !!(pl && pl.active);
+            ctx.fillStyle = active ? P.green : P.gray;
             ctx.fillRect(px + 2, py + 2, TS - 4, TS - 4);
-            ctx.fillStyle = P.cyan;
-            ctx.fillRect(px + 5, py + 5, 6, 6);
+            ctx.fillStyle = active ? P.lime : P.cyan;
+            ctx.fillRect(px + 4, py + 4, 8, 8);
+            if (room.puzzleKind === 'sequence' && pl && pl.order) {
+              G.drawPixelText(ctx, String(pl.order), px + 8, py + 5, P.black, null, 'center', 1);
+            }
           } else if (t === TILE.BLOCK) {
             ctx.drawImage(G.SpriteBank.get('obj_block'), px, py);
           } else if (t === TILE.STAIRS_DOWN) {
@@ -1655,10 +1914,10 @@ window.Game8Bit = window.Game8Bit || {};
           } else if (t === TILE.LORE_TABLET) {
             ctx.fillStyle = P.gray;
             ctx.fillRect(px + 3, py + 2, 10, 12);
-            ctx.fillStyle = P.cyan;
+            ctx.fillStyle = room.hasPuzzleReset ? P.gold : P.cyan;
             ctx.fillRect(px + 5, py + 5, 6, 2);
             ctx.fillRect(px + 5, py + 9, 6, 2);
-            G.drawPixelText(ctx, '[E] LER', px + 8, py - 6, P.lightGray, P.black, 'center', 1);
+            G.drawPixelText(ctx, room.hasPuzzleReset ? '[E] RESET' : '[E] LER', px + 8, py - 6, room.hasPuzzleReset ? P.gold : P.lightGray, P.black, 'center', 1);
           }
         }
       }
@@ -1731,13 +1990,18 @@ window.Game8Bit = window.Game8Bit || {};
         ctx.lineWidth = 1;
       }
 
-      // Arco de corte corpo-a-corpo
+      // Arco de corte corpo-a-corpo ou estocada de lança
       if (p.slashEffect) {
         const s = p.slashEffect;
         ctx.strokeStyle = s.color;
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.arc(Math.round(p.x), Math.round(p.y), s.reach * 0.72, s.angle - s.arc * 0.5, s.angle + s.arc * 0.5);
+        if (s.kind === 'spear') {
+          ctx.moveTo(Math.round(p.x), Math.round(p.y));
+          ctx.lineTo(Math.round(p.x + Math.cos(s.angle) * s.reach * 0.92), Math.round(p.y + Math.sin(s.angle) * s.reach * 0.92));
+        } else {
+          ctx.arc(Math.round(p.x), Math.round(p.y), s.reach * 0.72, s.angle - s.arc * 0.5, s.angle + s.arc * 0.5);
+        }
         ctx.stroke();
         ctx.lineWidth = 1;
       }

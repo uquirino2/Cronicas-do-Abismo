@@ -318,6 +318,129 @@ window.Game8Bit = window.Game8Bit || {};
       this.compile('hero_assassin_0', assassinRows0, assassinMap);
       this.compile('hero_assassin_1', assassinRows1, assassinMap);
 
+      // 4. Paladino Solar
+      const paladinMap = {
+        '.': null, k: P.ink, g: P.gold, y: P.yellow, w: P.white, s: P.lightGray, f: P.peach, r: P.red
+      };
+      this.compile('hero_paladin_0', [
+        '......rrrr......',
+        '.....kggggk.....',
+        '....kggyyggk....',
+        '....kgkkkkggk...',
+        '....kgkffkggk...',
+        '.....kffffk.....',
+        '...kkggggggkk...',
+        '..kwwkwwwwkwwk..',
+        '..kwwkgwwgkwwk..',
+        '..kffkwwwwkffk..',
+        '....kggggggk....',
+        '....kwwggwwk....',
+        '....kww..wwk....',
+        '....kgg..ggk....',
+        '....kkk..kkk....',
+        '................'
+      ], paladinMap);
+      this.compile('hero_paladin_1', [
+        '................',
+        '......rrrr......',
+        '.....kggggk.....',
+        '....kggyyggk....',
+        '....kgkkkkggk...',
+        '....kgkffkggk...',
+        '.....kffffk.....',
+        '...kkggggggkk...',
+        '..kwwkwwwwkwwk..',
+        '..kwwkgwwgkwwk..',
+        '..kffkwwwwkffk..',
+        '....kggggggk....',
+        '....kwwggwwk....',
+        '...kww....wwk...',
+        '...kgg....ggk...',
+        '...kkk....kkk...'
+      ], paladinMap);
+
+      // 5. Patrulheiro Astral
+      const rangerMap = {
+        '.': null, k: P.ink, g: P.green, l: P.lime, b: P.brown, t: P.tan, f: P.peach
+      };
+      this.compile('hero_ranger_0', [
+        '.....kkkkkk.....',
+        '....kggggggk....',
+        '...kggllllggk...',
+        '...kgkkkkkkgk...',
+        '...kgkffffkgk...',
+        '....kffffffk....',
+        '...kkbbbbbbkk...',
+        '..kggbtggtbggk..',
+        '..kggkggggkggk..',
+        '..kffkggggkffk..',
+        '....kbbggbbk....',
+        '....kggggggk....',
+        '....kbb..bbk....',
+        '....ktt..ttk....',
+        '....kkk..kkk....',
+        '................'
+      ], rangerMap);
+      this.compile('hero_ranger_1', [
+        '................',
+        '.....kkkkkk.....',
+        '....kggggggk....',
+        '...kggllllggk...',
+        '...kgkkkkkkgk...',
+        '...kgkffffkgk...',
+        '....kffffffk....',
+        '...kkbbbbbbkk...',
+        '..kggbtggtbggk..',
+        '..kggkggggkggk..',
+        '..kffkggggkffk..',
+        '....kbbggbbk....',
+        '....kggggggk....',
+        '...kbb....bbk...',
+        '...kkk....kkk...',
+        '................'
+      ], rangerMap);
+
+      // 6. Necromante do Vazio
+      const necroHeroMap = {
+        '.': null, k: P.ink, p: P.deepPurple, v: P.purple, m: P.violet, c: P.cyan, w: P.white, a: P.acid
+      };
+      this.compile('hero_necromancer_0', [
+        '.....kkkkkk.....',
+        '....kppppppk....',
+        '...kpvvvvvvpk...',
+        '...kpkcccckpk...',
+        '...kpkckkckpk...',
+        '....kpkkkkpk....',
+        '...kkmmwwmmkk...',
+        '..kppvwwwwvppk..',
+        '..kppkvvvvkpkk..',
+        '..kaakvvvvkaak..',
+        '....kvvvvvvk....',
+        '....kpvmvvpk....',
+        '....kppppppk....',
+        '....kpp..ppk....',
+        '....kkk..kkk....',
+        '................'
+      ], necroHeroMap);
+      this.compile('hero_necromancer_1', [
+        '................',
+        '.....kkkkkk.....',
+        '....kppppppk....',
+        '...kpvvvvvvpk...',
+        '...kpkcccckpk...',
+        '...kpkckkckpk...',
+        '....kpkkkkpk....',
+        '...kkmmwwmmkk...',
+        '..kppvwwwwvppk..',
+        '..kppkvvvvkpkk..',
+        '..kaakvvvvkaak..',
+        '....kvvvvvvk....',
+        '....kpvmvvpk....',
+        '...kpp....ppk...',
+        '...kkk....kkk...',
+        '................'
+      ], necroHeroMap);
+
       // ======================================================================
       // INIMIGOS (16x16)
       // ======================================================================
@@ -739,6 +862,123 @@ window.Game8Bit = window.Game8Bit || {};
         '................'
       ], mimicMap);
 
+      // Esporo Venenoso (Fungoid)
+      const fungMap = { '.': null, k: P.ink, p: P.purple, a: P.acid, l: P.lime, w: P.white, t: P.tan };
+      this.compile('enemy_fungoid_0', [
+        '....kkkkkkkk....',
+        '..kkppppppppkk..',
+        '.kppwwppppwwppk.',
+        'kpppwwppppwwpppk',
+        'kppppppwwppppppk',
+        '.kkllllllllllkk.',
+        '...kttttttttk...',
+        '...ktkttttktk...',
+        '...ktattttatk...',
+        '....kttttttk....',
+        '...ktattttatk...',
+        '....ktt..ttk....',
+        '....kpp..ppk....',
+        '....kkk..kkk....',
+        '................',
+        '................'
+      ], fungMap);
+      this.compile('enemy_fungoid_1', [
+        '................',
+        '....kkkkkkkk....',
+        '..kkppppppppkk..',
+        '.kppwwppppwwppk.',
+        'kpppwwppppwwpppk',
+        'kppppppwwppppppk',
+        '.kkllllllllllkk.',
+        '...kttttttttk...',
+        '...ktkttttktk...',
+        '...ktattttatk...',
+        '....kttttttk....',
+        '...ktattttatk...',
+        '...ktt....ttk...',
+        '...kkk....kkk...',
+        '................',
+        '................'
+      ], fungMap);
+
+      // Criomante Perdido (Cryo)
+      const cryoMap = { '.': null, k: P.ink, b: P.blue, c: P.cyan, i: P.ice, w: P.white, d: P.deepBlue };
+      this.compile('enemy_cryo_0', [
+        '......kkkk......',
+        '.....kiiik......',
+        '....kicccick....',
+        '...kicbkkbcik...',
+        '...kicbwwbcik...',
+        '....kcccccck....',
+        '..kkkbbbbbbkkk..',
+        '.kcckbiiiiikcck.',
+        '.kcckbbbbbbkcck.',
+        '..kk.kddddk.kk..',
+        '....kddccddk....',
+        '....kddddddk....',
+        '....kcc..cck....',
+        '....kkk..kkk....',
+        '................',
+        '................'
+      ], cryoMap);
+      this.compile('enemy_cryo_1', [
+        '................',
+        '......kkkk......',
+        '.....kiiik......',
+        '....kicccick....',
+        '...kicbkkbcik...',
+        '...kicbwwbcik...',
+        '....kcccccck....',
+        '..kkkbbbbbbkkk..',
+        '.kcckbiiiiikcck.',
+        '.kcckbbbbbbkcck.',
+        '..kk.kddddk.kk..',
+        '....kddccddk....',
+        '...kdd....ddk...',
+        '...kcc....cck...',
+        '...kkk....kkk...',
+        '................'
+      ], cryoMap);
+
+      // Paladino Caído (Fallen Knight)
+      const fkMap = { '.': null, k: P.ink, d: P.darkGray, g: P.gray, c: P.cyan, v: P.violet, s: P.lightGray };
+      this.compile('enemy_fallen_knight_0', [
+        '...k........k...',
+        '...kk.kkkk.kk...',
+        '....kkddddkk....',
+        '...kdddssdddk...',
+        '...kddkcckddk...',
+        '....kddddddk....',
+        '..kkkggggggkkk..',
+        '.ksskddvvddkssk.',
+        '.ks.kddddddk.sk.',
+        '....kggssggk....',
+        '....kddddddk....',
+        '....kdd..ddk....',
+        '....kss..ssk....',
+        '....kkk..kkk....',
+        '................',
+        '................'
+      ], fkMap);
+      this.compile('enemy_fallen_knight_1', [
+        '................',
+        '...k........k...',
+        '...kk.kkkk.kk...',
+        '....kkddddkk....',
+        '...kdddssdddk...',
+        '...kddkcckddk...',
+        '....kddddddk....',
+        '..kkkggggggkkk..',
+        '.ksskddvvddkssk.',
+        '.ks.kddddddk.sk.',
+        '....kggssggk....',
+        '....kddddddk....',
+        '...kdd....ddk...',
+        '...kkk....kkk...',
+        '................',
+        '................'
+      ], fkMap);
+
       // ======================================================================
       // CHEFES (24x24 compilados dinamicamente para imponência 8-bit)
       // ======================================================================
@@ -976,6 +1216,116 @@ window.Game8Bit = window.Game8Bit || {};
         '............',
         '............'
       ], malMap);
+
+      // 5. Hidra de Miasma, Vespera
+      const vespMap = { '.': null, k: P.ink, g: P.darkGreen, l: P.green, a: P.acid, y: P.yellow, p: P.purple, r: P.red };
+      buildSym24('boss_vespera_0', [
+        '..kkk...kkk.',
+        '.klllk.klllk',
+        '.klrrk.klrrk',
+        '..kllkkklllk',
+        '..kaalllllaa',
+        '...kaallllla',
+        '...kgggggggg',
+        '..kggllllllg',
+        '.kgglaaaaalg',
+        '.kglppppppgl',
+        '..kglaaaaalg',
+        '..kggggggggg',
+        '..k.kggggggk',
+        '....kll..llk',
+        '...kll....ll',
+        '...kaa....aa',
+        '...kkk....kk',
+        '............',
+        '............',
+        '............',
+        '............',
+        '............',
+        '............',
+        '............'
+      ], vespMap);
+      buildSym24('boss_vespera_1', [
+        '............',
+        '..kkk...kkk.',
+        '.klllk.klllk',
+        '.klrrk.klrrk',
+        '..kllkkklllk',
+        '..kaalllllaa',
+        '...kaallllla',
+        '...kgggggggg',
+        '..kggllllllg',
+        '.kgglaaaaalg',
+        '.kglppppppgl',
+        '..kglaaaaalg',
+        '..kggggggggg',
+        '..k.kggggggk',
+        '....kll..llk',
+        '....kaa..aak',
+        '....kkk..kkk',
+        '............',
+        '............',
+        '............',
+        '............',
+        '............',
+        '............',
+        '............'
+      ], vespMap);
+
+      // 6. Kaelen, o Cavaleiro do Eclipse
+      const kaelMap = { '.': null, k: P.ink, d: P.deepBlue, b: P.blue, c: P.cyan, i: P.ice, s: P.lightGray, v: P.violet };
+      buildSym24('boss_kaelen_0', [
+        '..kk........',
+        '.kiik...kkk.',
+        '..kiik.kdddk',
+        '...kiikddddk',
+        '....kkddsssd',
+        '....kddkccsd',
+        '....kddddddk',
+        '...kkbbbbbbk',
+        '..kssbiiiiib',
+        '.ksskbcccccb',
+        '.ks.kbdddddb',
+        '....kssvvssk',
+        '....kddddddk',
+        '...kbb....bb',
+        '...kcc....cc',
+        '...kdd....dd',
+        '...kkk....kk',
+        '............',
+        '............',
+        '............',
+        '............',
+        '............',
+        '............',
+        '............'
+      ], kaelMap);
+      buildSym24('boss_kaelen_1', [
+        '............',
+        '..kk........',
+        '.kiik...kkk.',
+        '..kiik.kdddk',
+        '...kiikddddk',
+        '....kkddsssd',
+        '....kddkccsd',
+        '....kddddddk',
+        '...kkbbbbbbk',
+        '..kssbiiiiib',
+        '.ksskbcccccb',
+        '.ks.kbdddddb',
+        '....kssvvssk',
+        '....kddddddk',
+        '....kbb..bbk',
+        '....kcc..cck',
+        '....kkk..kkk',
+        '............',
+        '............',
+        '............',
+        '............',
+        '............',
+        '............',
+        '............'
+      ], kaelMap);
     },
 
     _buildTilesAndItems() {
@@ -1341,6 +1691,106 @@ window.Game8Bit = window.Game8Bit || {};
         '................',
         '................'
       ], bowMap);
+
+      const spearMap = { '.': null, k: P.ink, w: P.white, c: P.cyan, b: P.brown, g: P.gold };
+      this.compile('item_spear', [
+        '.............kkk',
+        '............kwck',
+        '...........kwwck',
+        '..........kwwkk.',
+        '.........kggk...',
+        '........kbbk....',
+        '.......kbbk.....',
+        '......kbbk......',
+        '.....kbbk.......',
+        '....kbbk........',
+        '...kbbk.........',
+        '..kbbk..........',
+        '.kggk...........',
+        '.kkk............',
+        '................',
+        '................'
+      ], spearMap);
+
+      const hammerMap = { '.': null, k: P.ink, s: P.lightGray, g: P.gold, o: P.orange, b: P.brown };
+      this.compile('item_hammer', [
+        '................',
+        '...kkkkkkkkkk...',
+        '..kggggggggggk..',
+        '..kgoooooooogk..',
+        '..kggggggggggk..',
+        '...kkkkbbkkkk...',
+        '......kbbk......',
+        '......kbbk......',
+        '......kbbk......',
+        '......kbbk......',
+        '......kbbk......',
+        '......kbbk......',
+        '.....kggggk.....',
+        '.....kkkkkk.....',
+        '................',
+        '................'
+      ], hammerMap);
+
+      const scytheMap = { '.': null, k: P.ink, v: P.violet, a: P.acid, p: P.purple, b: P.darkGray };
+      this.compile('item_scythe', [
+        '....kkkkkkkkk...',
+        '..kkvvvvvvvvvk..',
+        '.kvaaaaaaaaaavk.',
+        '.kvkkkppppppk.k.',
+        '..kk......kbk...',
+        '.........kbbk...',
+        '........kbbk....',
+        '.......kbbk.....',
+        '......kbbk......',
+        '.....kbbk.......',
+        '....kbbk........',
+        '...kbbk.........',
+        '..kppk..........',
+        '..kkk...........',
+        '................',
+        '................'
+      ], scytheMap);
+
+      const grimMap = { '.': null, k: P.ink, p: P.purple, v: P.violet, w: P.peach, g: P.gold, c: P.cyan };
+      this.compile('item_grimoire', [
+        '................',
+        '..kkkkk..kkkkk..',
+        '.kppppk..kppppk.',
+        '.kpwwwk..kwwwpk.',
+        '.kpwcwk..kwgwpk.',
+        '.kpwwwk..kwwwpk.',
+        '.kpwcwk..kwcwpk.',
+        '.kpwwwk..kwwwpk.',
+        '.kppppkggkppppk.',
+        '..kkkkkkkkkkkk..',
+        '...kggggggggk...',
+        '...kkkkkkkkkk...',
+        '................',
+        '................',
+        '................',
+        '................'
+      ], grimMap);
+
+      const xbowMap = { '.': null, k: P.ink, b: P.brown, s: P.lightGray, w: P.white, g: P.gold };
+      this.compile('item_crossbow', [
+        '................',
+        '.....kkkkkk.....',
+        '...kksssssskk...',
+        '..ksskkkkkkssk..',
+        '..ksk..ww..ksk..',
+        '.......ww.......',
+        '..kkkggggggkkk..',
+        '..kbbbbbbbbbbk..',
+        '......kbbk......',
+        '......kbbk......',
+        '......kbbk......',
+        '.....kggggk.....',
+        '.....kkkkkk.....',
+        '................',
+        '................',
+        '................'
+      ], xbowMap);
 
       const armorMap = { '.': null, k: P.ink, s: P.lightGray, g: P.gray, b: P.blue, y: P.gold };
       this.compile('item_armor', [

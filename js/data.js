@@ -13,29 +13,82 @@ window.Game8Bit = window.Game8Bit || {};
     normal: {
       id: 'normal',
       name: 'Aventureiro',
-      desc: 'Equilíbrio clássico 8-bit. Inimigos padrão e recompensas normais.',
-      enemyHpMult: 1.0,
-      enemyDmgMult: 1.0,
-      lootMult: 1.0,
-      soulMult: 1.0
+      desc: '6 Andares, 1 Enigma/andar e XP 1.0x. Clássico 8-bit aprimorado com chefes mais resistentes.',
+      enemyHpMult: 1.35,
+      enemyDmgMult: 1.20,
+      enemySpeedMult: 1.0,
+      enemyCdMult: 0.92,
+      projSpeedMult: 1.0,
+      roomBonus: 0,
+      puzzleRooms: 1,
+      puzzlePlates: 2,
+      spawnBonus: 0,
+      lootMult: 1.15,
+      xpMult: 1.0,
+      soulMult: 1.0,
+      shopMult: 1.0,
+      healScale: 1.0,
+      oneHitDeath: false
     },
     veteran: {
       id: 'veteran',
       name: 'Veterano',
-      desc: 'Mais elites e armadilhas letais. +35% Ouro e Almas Ancestrais.',
-      enemyHpMult: 1.32,
-      enemyDmgMult: 1.25,
-      lootMult: 1.25,
-      soulMult: 1.35
+      desc: 'Mapas maiores, 2 Enigmas (3 peças/sequência), elites ferozes. XP 1.35x, Drop 1.35x e Almas 1.45x.',
+      enemyHpMult: 1.80,
+      enemyDmgMult: 1.48,
+      enemySpeedMult: 1.12,
+      enemyCdMult: 0.82,
+      projSpeedMult: 1.12,
+      roomBonus: 2,
+      puzzleRooms: 2,
+      puzzlePlates: 3,
+      spawnBonus: 1,
+      lootMult: 1.35,
+      xpMult: 1.35,
+      soulMult: 1.45,
+      shopMult: 1.15,
+      healScale: 0.75,
+      oneHitDeath: false
     },
     nightmare: {
       id: 'nightmare',
       name: 'Pesadelo',
-      desc: 'Brutal e implacável. Chefes ferozes, +75% Almas Ancestrais.',
-      enemyHpMult: 1.65,
-      enemyDmgMult: 1.55,
-      lootMult: 1.5,
-      soulMult: 1.75
+      desc: 'Labirintos extensos, +2 monstros/sala, 2 Enigmas complexos (4 peças). XP 1.75x, Drop 1.6x e Almas 2.0x.',
+      enemyHpMult: 2.35,
+      enemyDmgMult: 1.85,
+      enemySpeedMult: 1.22,
+      enemyCdMult: 0.70,
+      projSpeedMult: 1.22,
+      roomBonus: 4,
+      puzzleRooms: 2,
+      puzzlePlates: 4,
+      spawnBonus: 2,
+      lootMult: 1.60,
+      xpMult: 1.75,
+      soulMult: 2.0,
+      shopMult: 1.30,
+      healScale: 0.55,
+      oneHitDeath: false
+    },
+    descomunal: {
+      id: 'descomunal',
+      name: 'DESCOMUNAL',
+      desc: 'QUALQUER DANO MATA NA HORA! Chefes velozes, 3 Enigmas/andar. XP 2.5x, Drop 1.9x e Almas 3.0x!',
+      enemyHpMult: 2.95,
+      enemyDmgMult: 2.50,
+      enemySpeedMult: 1.32,
+      enemyCdMult: 0.60,
+      projSpeedMult: 1.32,
+      roomBonus: 5,
+      puzzleRooms: 3,
+      puzzlePlates: 4,
+      spawnBonus: 2,
+      lootMult: 1.90,
+      xpMult: 2.50,
+      soulMult: 3.0,
+      shopMult: 1.40,
+      healScale: 0.0,
+      oneHitDeath: true
     }
   };
 
@@ -63,7 +116,7 @@ window.Game8Bit = window.Game8Bit || {};
         cooldown: 5.5,
         desc: 'Avança esmagando o chão em onda de choque que atordoa e causa dano em área.'
       },
-      parryBonus: 0.10, // janela extra de parry
+      parryBonus: 0.10,
       startWeapon: 'tpl_iron_sword',
       startArmor: 'tpl_guard_plate'
     },
@@ -122,6 +175,90 @@ window.Game8Bit = window.Game8Bit || {};
       parryBonus: 0.04,
       startWeapon: 'tpl_shadow_daggers',
       startArmor: 'tpl_night_leather'
+    },
+
+    paladin: {
+      id: 'paladin',
+      name: 'Templário Solar',
+      title: 'Arauto da Aurora',
+      spritePrefix: 'hero_paladin',
+      desc: 'Cruzado sagrado que combina martelos flamejantes, alta resistência e purificação solar em área.',
+      stats: {
+        maxHp: 132,
+        maxMp: 65,
+        maxStamina: 105,
+        atk: 13,
+        mag: 11,
+        def: 7,
+        speed: 76,
+        crit: 0.09
+      },
+      growth: { hp: 20, mp: 8, atk: 3, mag: 2, def: 2 },
+      skill: {
+        name: 'Consagração Solar',
+        cost: 18,
+        cooldown: 5.8,
+        desc: 'Explode em aura sagrada que incendeia inimigos próximos, purifica debuffs e concede invulnerabilidade breve.'
+      },
+      parryBonus: 0.08,
+      startWeapon: 'tpl_sun_mace',
+      startArmor: 'tpl_templar_aegis'
+    },
+
+    ranger: {
+      id: 'ranger',
+      name: 'Caçador Astral',
+      title: 'Olho de Falcão',
+      spritePrefix: 'hero_ranger',
+      desc: 'Atirador ágil de longo alcance com arco e besta. Alta taxa crítica e manobra evasiva acrobática.',
+      stats: {
+        maxHp: 90,
+        maxMp: 60,
+        maxStamina: 125,
+        atk: 13,
+        mag: 7,
+        def: 3,
+        speed: 92,
+        crit: 0.20
+      },
+      growth: { hp: 12, mp: 7, atk: 3, mag: 1, def: 1 },
+      skill: {
+        name: 'Chuva de Flechas',
+        cost: 15,
+        cooldown: 4.4,
+        desc: 'Dispara um leque de 5 flechas perfurantes enquanto salta para trás em segurança.'
+      },
+      parryBonus: 0.02,
+      startWeapon: 'tpl_rune_bow',
+      startArmor: 'tpl_ranger_cloak'
+    },
+
+    necromancer: {
+      id: 'necromancer',
+      name: 'Ocultista do Vazio',
+      title: 'Senhor das Sombras',
+      spritePrefix: 'hero_necromancer',
+      desc: 'Ceifador sombrio que empunha foices drenadoras e invoca espectros aliados para caçar inimigos.',
+      stats: {
+        maxHp: 88,
+        maxMp: 95,
+        maxStamina: 100,
+        atk: 9,
+        mag: 15,
+        def: 3,
+        speed: 82,
+        crit: 0.12
+      },
+      growth: { hp: 11, mp: 13, atk: 2, mag: 4, def: 1 },
+      skill: {
+        name: 'Legião Espectral',
+        cost: 22,
+        cooldown: 6.0,
+        desc: 'Drena essência ao redor e invoca 2 Espectros Aliados que perseguem inimigos por 9s.'
+      },
+      parryBonus: 0.02,
+      startWeapon: 'tpl_venom_scythe',
+      startArmor: 'tpl_void_shroud'
     }
   };
 
@@ -130,7 +267,7 @@ window.Game8Bit = window.Game8Bit || {};
       id: 'catacombs',
       floor: 1,
       name: 'Catacumbas de Obsidiana',
-      subtitle: 'Andar I — Ossos e Ecos',
+      subtitle: 'Andar I — A Queda de Aurelia',
       music: 'dungeon1',
       wallTop: '#242234',
       wallFace: '#3d3a54',
@@ -142,13 +279,31 @@ window.Game8Bit = window.Game8Bit || {};
       enemies: ['skeleton', 'bat', 'slime', 'shield'],
       hazards: ['oil', 'spikes', 'water'],
       bossId: 'boss_bone_king',
-      lore: 'Criptas antigas onde guerreiros caídos ainda montam guarda sob ordens de Vael.'
+      lore: 'Primeiro selo da Cidadela. Aqui jazem os Sentinelas que tentaram conter a fenda quando a Coroa se partiu.'
+    },
+    {
+      id: 'mire',
+      floor: 2,
+      name: 'Pântano de Miasma',
+      subtitle: 'Andar II — Raízes da Praga',
+      music: 'dungeon5',
+      wallTop: '#102818',
+      wallFace: '#1c4628',
+      wallTrim: '#3c8044',
+      floorA: '#0b1810',
+      floorB: '#112217',
+      floorAccent: '#183020',
+      ambientDarkness: 0.30,
+      enemies: ['fungoid', 'slime', 'necro', 'bat', 'goblin'],
+      hazards: ['water', 'oil', 'spikes'],
+      bossId: 'boss_vespera',
+      lore: 'As águas subterrâneas apodreceram com o sangue sombrio do Abismo. Esporos tóxicos reagem violentamente ao fogo.'
     },
     {
       id: 'forge',
-      floor: 2,
-      name: 'Forja Vulcânica',
-      subtitle: 'Andar II — Brasas Eternas',
+      floor: 3,
+      name: 'Forja Vulcânica de Ignis',
+      subtitle: 'Andar III — Brasas Eternas',
       music: 'dungeon2',
       wallTop: '#361614',
       wallFace: '#5a221c',
@@ -160,13 +315,13 @@ window.Game8Bit = window.Game8Bit || {};
       enemies: ['goblin', 'pyro', 'golem', 'slime', 'shield'],
       hazards: ['oil', 'lava', 'spikes'],
       bossId: 'boss_ignis_rex',
-      lore: 'Cuidado com poças de óleo e barris voláteis: uma faísca transforma a sala num inferno.'
+      lore: 'Nas bigornas titânicas, Ignis Rex forjou as armas amaldiçoadas que selaram o destino dos sete reinos.'
     },
     {
       id: 'library',
-      floor: 3,
+      floor: 4,
       name: 'Biblioteca Arcana',
-      subtitle: 'Andar III — Tomos Proibidos',
+      subtitle: 'Andar IV — Tomos Proibidos',
       music: 'dungeon3',
       wallTop: '#162442',
       wallFace: '#243c6e',
@@ -175,16 +330,34 @@ window.Game8Bit = window.Game8Bit || {};
       floorB: '#141e36',
       floorAccent: '#1c2a48',
       ambientDarkness: 0.26,
-      enemies: ['stalker', 'turret', 'necro', 'bat', 'goblin'],
+      enemies: ['stalker', 'turret', 'cryo', 'necro', 'goblin'],
       hazards: ['water', 'ice', 'spikes'],
       bossId: 'boss_lyra',
-      lore: 'Canais de água rúnica conduzem eletricidade e congelam sob magia de gelo.'
+      lore: 'Os espelhos rúnicos ainda ecoam os últimos feitiços de Lyra antes que o éter consumisse sua lucidez.'
+    },
+    {
+      id: 'glacier',
+      floor: 5,
+      name: 'Bastilha Glacial do Eclipse',
+      subtitle: 'Andar V — O Traidor Congelado',
+      music: 'dungeon6',
+      wallTop: '#122638',
+      wallFace: '#1e4260',
+      wallTrim: '#3888b8',
+      floorA: '#0b1622',
+      floorB: '#102030',
+      floorAccent: '#183044',
+      ambientDarkness: 0.28,
+      enemies: ['cryo', 'fallen_knight', 'stalker', 'turret', 'golem'],
+      hazards: ['ice', 'water', 'spikes'],
+      bossId: 'boss_kaelen',
+      lore: 'Lorde Kaelen congelou toda a vanguarda da Aurora num único voto de silêncio para proteger a entrada do trono.'
     },
     {
       id: 'citadel',
-      floor: 4,
+      floor: 6,
       name: 'Cidadela do Abismo',
-      subtitle: 'Andar IV — Trono de Malakor',
+      subtitle: 'Andar VI — Trono de Malakor',
       music: 'dungeon4',
       wallTop: '#2a0e38',
       wallFace: '#48185e',
@@ -192,11 +365,11 @@ window.Game8Bit = window.Game8Bit || {};
       floorA: '#14081c',
       floorB: '#1c0c26',
       floorAccent: '#2b123b',
-      ambientDarkness: 0.32,
-      enemies: ['stalker', 'necro', 'golem', 'pyro', 'shield', 'turret'],
+      ambientDarkness: 0.34,
+      enemies: ['fallen_knight', 'cryo', 'fungoid', 'stalker', 'necro', 'golem', 'pyro', 'turret'],
       hazards: ['oil', 'water', 'lava', 'spikes'],
       bossId: 'boss_malakor',
-      lore: 'O coração corrompido do Abismo. Apenas mestres de espada, escudo e alquimia sobrevivem.'
+      lore: 'Onde o véu do mundo rasgou. Malakor empunha os quatro fragmentos da Coroa Partida aguardando o duelo final.'
     }
   ];
 
@@ -205,17 +378,17 @@ window.Game8Bit = window.Game8Bit || {};
       id: 'skeleton',
       name: 'Esqueleto Lanceiro',
       sprite: 'enemy_skeleton',
-      hp: 34,
-      atk: 10,
-      speed: 44,
+      hp: 48,
+      atk: 12,
+      speed: 48,
       range: 20,
-      windup: 0.42,
-      cooldown: 1.15,
+      windup: 0.40,
+      cooldown: 1.05,
       ai: 'melee',
       element: 'physical',
       weak: 'fire',
       resist: 'poison',
-      xp: 16,
+      xp: 18,
       gold: [4, 10],
       lore: 'Avança direto e telegrafa estocadas. Fácil de punir com Parry no momento do clarão.'
     },
@@ -223,17 +396,17 @@ window.Game8Bit = window.Game8Bit || {};
       id: 'bat',
       name: 'Morcego Sombrio',
       sprite: 'enemy_bat',
-      hp: 22,
-      atk: 8,
-      speed: 68,
+      hp: 34,
+      atk: 9,
+      speed: 74,
       range: 16,
-      windup: 0.28,
-      cooldown: 0.9,
+      windup: 0.25,
+      cooldown: 0.85,
       ai: 'erratic',
       element: 'physical',
       weak: 'lightning',
       resist: null,
-      xp: 12,
+      xp: 14,
       gold: [2, 6],
       flying: true,
       lore: 'Voa sobre poças, espinhos e blocos. Ataca em mergulhos imprevisíveis.'
@@ -242,17 +415,17 @@ window.Game8Bit = window.Game8Bit || {};
       id: 'slime',
       name: 'Slime Ácido',
       sprite: 'enemy_slime',
-      hp: 40,
-      atk: 9,
-      speed: 32,
+      hp: 56,
+      atk: 11,
+      speed: 35,
       range: 16,
-      windup: 0.45,
-      cooldown: 1.3,
+      windup: 0.42,
+      cooldown: 1.2,
       ai: 'slime',
       element: 'poison',
       weak: 'ice',
       resist: 'poison',
-      xp: 18,
+      xp: 20,
       gold: [5, 11],
       lore: 'Slimes grandes se dividem em dois mini-slimes ao morrer se não forem congelados.'
     },
@@ -260,17 +433,17 @@ window.Game8Bit = window.Game8Bit || {};
       id: 'shield',
       name: 'Guardião de Escudo',
       sprite: 'enemy_shield',
-      hp: 54,
-      atk: 13,
-      speed: 34,
+      hp: 78,
+      atk: 15,
+      speed: 36,
       range: 20,
-      windup: 0.55,
-      cooldown: 1.4,
+      windup: 0.50,
+      cooldown: 1.3,
       ai: 'shield',
       element: 'physical',
       weak: 'lightning',
       resist: 'physical',
-      xp: 24,
+      xp: 28,
       gold: [8, 16],
       lore: 'Bloqueia ataques frontais! Contorne-o com Dash, use bombas ou acerte com Raio/Fogo.'
     },
@@ -278,35 +451,53 @@ window.Game8Bit = window.Game8Bit || {};
       id: 'goblin',
       name: 'Goblin Arqueiro',
       sprite: 'enemy_goblin',
-      hp: 28,
-      atk: 11,
-      speed: 52,
-      range: 140,
-      windup: 0.55,
-      cooldown: 1.6,
+      hp: 42,
+      atk: 13,
+      speed: 55,
+      range: 145,
+      windup: 0.50,
+      cooldown: 1.45,
       ai: 'ranged',
       element: 'physical',
       weak: 'fire',
       resist: null,
-      xp: 18,
+      xp: 22,
       gold: [5, 12],
       lore: 'Mantém distância e dispara flechas rápidas que podem ser refletidas com Escudo (Parry).'
+    },
+    fungoid: {
+      id: 'fungoid',
+      name: 'Esporo Tóxico',
+      sprite: 'enemy_fungoid',
+      hp: 64,
+      atk: 13,
+      speed: 40,
+      range: 120,
+      windup: 0.52,
+      cooldown: 1.65,
+      ai: 'caster',
+      element: 'poison',
+      weak: 'fire',
+      resist: 'poison',
+      xp: 26,
+      gold: [7, 15],
+      lore: 'Lança glóbulos de miasma e libera uma nuvem venenosa letal ao morrer. Queime-o à distância!'
     },
     pyro: {
       id: 'pyro',
       name: 'Piromante Cultista',
       sprite: 'enemy_pyro',
-      hp: 36,
-      atk: 14,
-      speed: 40,
-      range: 130,
-      windup: 0.65,
-      cooldown: 1.9,
+      hp: 54,
+      atk: 16,
+      speed: 44,
+      range: 135,
+      windup: 0.60,
+      cooldown: 1.75,
       ai: 'caster',
       element: 'fire',
       weak: 'ice',
       resist: 'fire',
-      xp: 26,
+      xp: 28,
       gold: [9, 18],
       lore: 'Lança bolas de fogo que incendeiam óleo e explodem barris no caminho.'
     },
@@ -314,53 +505,71 @@ window.Game8Bit = window.Game8Bit || {};
       id: 'stalker',
       name: 'Espectro Teletransportador',
       sprite: 'enemy_stalker',
-      hp: 42,
-      atk: 15,
-      speed: 48,
+      hp: 62,
+      atk: 17,
+      speed: 52,
       range: 24,
-      windup: 0.45,
-      cooldown: 1.45,
+      windup: 0.42,
+      cooldown: 1.35,
       ai: 'stalker',
       element: 'arcane',
       weak: 'lightning',
       resist: 'arcane',
-      xp: 30,
+      xp: 34,
       gold: [10, 20],
       lore: 'Teleporta-se para perto do jogador após sofrer dano ou a cada ciclo de caça.'
+    },
+    cryo: {
+      id: 'cryo',
+      name: 'Criomante Perdido',
+      sprite: 'enemy_cryo',
+      hp: 68,
+      atk: 15,
+      speed: 42,
+      range: 145,
+      windup: 0.56,
+      cooldown: 1.7,
+      ai: 'caster',
+      element: 'ice',
+      weak: 'fire',
+      resist: 'ice',
+      xp: 34,
+      gold: [10, 20],
+      lore: 'Dispara estilhaços glaciais que congelam a água sob seus pés e reduzem sua velocidade.'
     },
     golem: {
       id: 'golem',
       name: 'Golem de Magma',
       sprite: 'enemy_golem',
-      hp: 86,
-      atk: 18,
-      speed: 25,
+      hp: 125,
+      atk: 21,
+      speed: 27,
       range: 24,
-      windup: 0.72,
-      cooldown: 1.9,
+      windup: 0.68,
+      cooldown: 1.75,
       ai: 'golem',
       element: 'fire',
       weak: 'ice',
       resist: 'fire',
-      xp: 38,
+      xp: 44,
       gold: [14, 26],
-      lore: 'Lento mas resistente. Golpeia o chão criando ondas sísmicas flamejantes.'
+      lore: 'Colosso de pedra ígnea. Golpeia o chão criando ondas sísmicas flamejantes.'
     },
     necro: {
       id: 'necro',
       name: 'Necromante Sombrio',
       sprite: 'enemy_necro',
-      hp: 46,
-      atk: 13,
-      speed: 35,
+      hp: 68,
+      atk: 15,
+      speed: 38,
       range: 145,
-      windup: 0.75,
-      cooldown: 2.6,
+      windup: 0.68,
+      cooldown: 2.35,
       ai: 'necro',
       element: 'poison',
       weak: 'fire',
       resist: 'arcane',
-      xp: 34,
+      xp: 38,
       gold: [12, 22],
       lore: 'Dispara orbes venenosos e invoca Esqueletos se não for eliminado rapidamente.'
     },
@@ -368,35 +577,53 @@ window.Game8Bit = window.Game8Bit || {};
       id: 'turret',
       name: 'Totem Arcano',
       sprite: 'enemy_turret',
-      hp: 58,
-      atk: 13,
+      hp: 82,
+      atk: 15,
       speed: 0,
-      range: 180,
-      windup: 0.5,
-      cooldown: 1.85,
+      range: 185,
+      windup: 0.45,
+      cooldown: 1.65,
       ai: 'turret',
       element: 'lightning',
       weak: 'physical',
       resist: 'lightning',
-      xp: 28,
+      xp: 32,
       gold: [10, 18],
       lore: 'Torreta imóvel que dispara rajadas elétricas em cruz ou mirando o intruso.'
+    },
+    fallen_knight: {
+      id: 'fallen_knight',
+      name: 'Paladino Caído',
+      sprite: 'enemy_fallen_knight',
+      hp: 105,
+      atk: 20,
+      speed: 52,
+      range: 26,
+      windup: 0.45,
+      cooldown: 1.25,
+      ai: 'charger',
+      element: 'lightning',
+      weak: 'poison',
+      resist: 'physical',
+      xp: 48,
+      gold: [16, 28],
+      lore: 'Antigo cavaleiro corrompido pelo Eclipse. Executa investidas velozes carregadas de raio!'
     },
     mimic: {
       id: 'mimic',
       name: 'Baú Mímico',
       sprite: 'enemy_mimic',
-      hp: 74,
-      atk: 17,
-      speed: 58,
+      hp: 96,
+      atk: 20,
+      speed: 62,
       range: 20,
-      windup: 0.38,
-      cooldown: 1.1,
+      windup: 0.35,
+      cooldown: 1.0,
       ai: 'melee',
       element: 'physical',
       weak: 'fire',
       resist: null,
-      xp: 45,
+      xp: 55,
       gold: [28, 45],
       lore: 'Disfarça-se de baú comum! Se sobreviver à emboscada, derruba tesouros valiosos.'
     }
@@ -408,27 +635,41 @@ window.Game8Bit = window.Game8Bit || {};
       name: 'Rei Ossário Vael',
       title: 'Senhor das Catacumbas',
       sprite: 'boss_bone_king',
-      hp: 320,
-      atk: 17,
-      speed: 44,
+      hp: 480,
+      atk: 19,
+      speed: 48,
       element: 'physical',
       weak: 'fire',
-      xp: 150,
+      xp: 180,
       gold: [75, 110],
       lore: 'O primeiro monarca sepultado em Obsidiana. Arremessa foices de osso e convoca sua guarda.'
+    },
+    boss_vespera: {
+      id: 'boss_vespera',
+      name: 'Hidra de Miasma, Vespera',
+      title: 'Matriarca da Praga',
+      sprite: 'boss_vespera',
+      hp: 700,
+      atk: 22,
+      speed: 46,
+      element: 'poison',
+      weak: 'fire',
+      xp: 260,
+      gold: [95, 145],
+      lore: 'Serpente tri-cabeça nutrida pela corrupção do Pântano. Cospe leques venenosos e poças ácidas.'
     },
     boss_ignis_rex: {
       id: 'boss_ignis_rex',
       name: 'Ignis Rex, o Forjador',
       title: 'Titã das Brasas',
       sprite: 'boss_ignis_rex',
-      hp: 460,
-      atk: 21,
-      speed: 40,
+      hp: 940,
+      atk: 24,
+      speed: 44,
       element: 'fire',
       weak: 'ice',
-      xp: 240,
-      gold: [110, 160],
+      xp: 350,
+      gold: [120, 175],
       lore: 'Forjou as lâminas demoníacas do Abismo. Suas investidas deixam rastros de fogo.'
     },
     boss_lyra: {
@@ -436,72 +677,109 @@ window.Game8Bit = window.Game8Bit || {};
       name: 'Arquimaga Lyra',
       title: 'Guardiã dos Espelhos',
       sprite: 'boss_lyra',
-      hp: 580,
-      atk: 23,
-      speed: 52,
+      hp: 1180,
+      atk: 26,
+      speed: 55,
       element: 'lightning',
       weak: 'poison',
-      xp: 340,
-      gold: [150, 210],
+      xp: 460,
+      gold: [155, 220],
       lore: 'Enlouquecida pelo éter proibido. Teleporta-se entre runas alternando gelo e trovão.'
+    },
+    boss_kaelen: {
+      id: 'boss_kaelen',
+      name: 'Kaelen do Eclipse',
+      title: 'General da Bastilha Glacial',
+      sprite: 'boss_kaelen',
+      hp: 1450,
+      atk: 28,
+      speed: 56,
+      element: 'ice',
+      weak: 'fire',
+      xp: 580,
+      gold: [190, 270],
+      lore: 'O maior campeão humano antes de trair Aurelia por imortalidade. Domina gelo e raios abissais.'
     },
     boss_malakor: {
       id: 'boss_malakor',
       name: 'Malakor, Senhor do Abismo',
       title: 'Soberano da Coroa Partida',
       sprite: 'boss_malakor',
-      hp: 820,
-      atk: 27,
-      speed: 54,
+      hp: 1900,
+      atk: 32,
+      speed: 58,
       element: 'arcane',
       weak: null,
-      xp: 600,
-      gold: [250, 350],
-      lore: 'A entidade primordial no fundo da Cidadela. Alterna os 4 elementos na segunda fase.'
+      xp: 900,
+      gold: [280, 400],
+      lore: 'A entidade primordial no fundo da Cidadela. Alterna todos os elementos com fúria implacável.'
     }
   };
 
   const RARITIES = {
     comum: { id: 'comum', name: 'Comum', color: '#a4a2b8', mult: 1.0, affixCount: 0 },
-    incomum: { id: 'incomum', name: 'Incomum', color: '#78d838', mult: 1.22, affixCount: 1 },
-    raro: { id: 'raro', name: 'Raro', color: '#4898f8', mult: 1.48, affixCount: 1 },
-    epico: { id: 'epico', name: 'Épico', color: '#c458f8', mult: 1.82, affixCount: 2 },
-    lendario: { id: 'lendario', name: 'Lendário', color: '#f8b818', mult: 2.25, affixCount: 2 }
+    incomum: { id: 'incomum', name: 'Incomum', color: '#78d838', mult: 1.24, affixCount: 1 },
+    raro: { id: 'raro', name: 'Raro', color: '#4898f8', mult: 1.52, affixCount: 1 },
+    epico: { id: 'epico', name: 'Épico', color: '#c458f8', mult: 1.88, affixCount: 2 },
+    lendario: { id: 'lendario', name: 'Lendário', color: '#f8b818', mult: 2.35, affixCount: 2 }
   };
 
   const ITEM_TEMPLATES = {
-    // Armas
-    tpl_iron_sword: { id: 'tpl_iron_sword', name: 'Espada de Ferro', slot: 'weapon', kind: 'sword', icon: 'item_sword', baseAtk: 10, baseMag: 0, range: 26, arc: 1.9, speed: 1.0, element: 'physical', value: 30 },
-    tpl_broad_axe: { id: 'tpl_broad_axe', name: 'Machado de Guerra', slot: 'weapon', kind: 'axe', icon: 'item_axe', baseAtk: 15, baseMag: 0, range: 28, arc: 2.4, speed: 0.78, element: 'physical', value: 45 },
-    tpl_apprentice_staff: { id: 'tpl_apprentice_staff', name: 'Cajado Rúnico', slot: 'weapon', kind: 'staff', icon: 'item_staff', baseAtk: 4, baseMag: 12, range: 155, ranged: true, speed: 1.0, element: 'arcane', value: 34 },
-    tpl_shadow_daggers: { id: 'tpl_shadow_daggers', name: 'Adagas Sombrias', slot: 'weapon', kind: 'dagger', icon: 'item_dagger', baseAtk: 9, baseMag: 2, range: 22, arc: 1.4, speed: 1.38, element: 'poison', value: 36 },
-    tpl_rune_bow: { id: 'tpl_rune_bow', name: 'Arco Élfico', slot: 'weapon', kind: 'bow', icon: 'item_bow', baseAtk: 11, baseMag: 4, range: 180, ranged: true, speed: 1.12, element: 'physical', value: 42 },
-    tpl_flame_blade: { id: 'tpl_flame_blade', name: 'Lâmina Solar', slot: 'weapon', kind: 'sword', icon: 'item_sword', baseAtk: 14, baseMag: 6, range: 28, arc: 2.0, speed: 1.06, element: 'fire', value: 65 },
-    tpl_frost_wand: { id: 'tpl_frost_wand', name: 'Cetro Glacial', slot: 'weapon', kind: 'staff', icon: 'item_staff', baseAtk: 5, baseMag: 15, range: 165, ranged: true, speed: 1.04, element: 'ice', value: 68 },
-    tpl_storm_halberd: { id: 'tpl_storm_halberd', name: 'Machado Tempestuoso', slot: 'weapon', kind: 'axe', icon: 'item_axe', baseAtk: 17, baseMag: 8, range: 30, arc: 2.4, speed: 0.85, element: 'lightning', value: 74 },
+    // Armas (20 armas variadas em 8 arquétipos)
+    tpl_iron_sword: { id: 'tpl_iron_sword', name: 'Espada de Ferro', slot: 'weapon', kind: 'sword', icon: 'item_sword', baseAtk: 10, baseMag: 0, range: 26, arc: 1.9, speed: 1.0, element: 'physical', value: 30, desc: 'Espada equilibrada com corte amplo.' },
+    tpl_broad_axe: { id: 'tpl_broad_axe', name: 'Machado de Guerra', slot: 'weapon', kind: 'axe', icon: 'item_axe', baseAtk: 15, baseMag: 0, range: 28, arc: 2.4, speed: 0.78, element: 'physical', value: 45, desc: 'Golpe pesado de grande arco.' },
+    tpl_apprentice_staff: { id: 'tpl_apprentice_staff', name: 'Cajado Rúnico', slot: 'weapon', kind: 'staff', icon: 'item_staff', baseAtk: 4, baseMag: 12, range: 155, ranged: true, speed: 1.0, element: 'arcane', value: 34, desc: 'Dispara orbes arcanos à distância.' },
+    tpl_shadow_daggers: { id: 'tpl_shadow_daggers', name: 'Adagas Sombrias', slot: 'weapon', kind: 'dagger', icon: 'item_dagger', baseAtk: 9, baseMag: 2, range: 22, arc: 1.4, speed: 1.40, element: 'poison', value: 36, desc: 'Ataques velozes com veneno.' },
+    tpl_rune_bow: { id: 'tpl_rune_bow', name: 'Arco Élfico', slot: 'weapon', kind: 'bow', icon: 'item_bow', baseAtk: 11, baseMag: 4, range: 185, ranged: true, speed: 1.15, element: 'physical', value: 42, desc: 'Dispara flechas velozes sem gastar mana.' },
+    tpl_flame_blade: { id: 'tpl_flame_blade', name: 'Lâmina Solar', slot: 'weapon', kind: 'sword', icon: 'item_sword', baseAtk: 14, baseMag: 6, range: 28, arc: 2.0, speed: 1.06, element: 'fire', value: 65, desc: 'Espada flamejante que inflama óleo e inimigos.' },
+    tpl_frost_wand: { id: 'tpl_frost_wand', name: 'Cetro Glacial', slot: 'weapon', kind: 'staff', icon: 'item_staff', baseAtk: 5, baseMag: 15, range: 165, ranged: true, speed: 1.04, element: 'ice', value: 68, desc: 'Lança esferas glaciais congelantes.' },
+    tpl_storm_halberd: { id: 'tpl_storm_halberd', name: 'Machado Tempestuoso', slot: 'weapon', kind: 'axe', icon: 'item_axe', baseAtk: 17, baseMag: 8, range: 30, arc: 2.4, speed: 0.86, element: 'lightning', value: 74, desc: 'Eletrocuta água e inimigos em arco.' },
+    tpl_iron_spear: { id: 'tpl_iron_spear', name: 'Lança de Aço', slot: 'weapon', kind: 'spear', icon: 'item_spear', baseAtk: 13, baseMag: 0, range: 42, arc: 0.75, speed: 1.10, element: 'physical', value: 48, desc: 'Estocada perfurante de alcance longo (42px).' },
+    tpl_frost_glaive: { id: 'tpl_frost_glaive', name: 'Alabarda Glacial', slot: 'weapon', kind: 'spear', icon: 'item_spear', baseAtk: 15, baseMag: 7, range: 44, arc: 0.85, speed: 1.05, element: 'ice', value: 76, desc: 'Alabarda gélida que perfura em fila.' },
+    tpl_sun_mace: { id: 'tpl_sun_mace', name: 'Maça da Aurora', slot: 'weapon', kind: 'hammer', icon: 'item_hammer', baseAtk: 13, baseMag: 6, range: 27, arc: 2.2, speed: 0.88, element: 'fire', value: 52, desc: 'Martelo sagrado com forte repulsão e chance de atordoar.' },
+    tpl_inferno_hammer: { id: 'tpl_inferno_hammer', name: 'Martelo Vulcânico', slot: 'weapon', kind: 'hammer', icon: 'item_hammer', baseAtk: 20, baseMag: 8, range: 31, arc: 2.5, speed: 0.76, element: 'fire', value: 84, desc: 'Impacto devastador que atordoa e explode brasas.' },
+    tpl_venom_scythe: { id: 'tpl_venom_scythe', name: 'Foice do Miasma', slot: 'weapon', kind: 'scythe', icon: 'item_scythe', baseAtk: 11, baseMag: 10, range: 32, arc: 2.6, speed: 0.96, element: 'poison', vampiric: 0.04, value: 58, desc: 'Varredura ampla que drena mana e veneno a cada golpe.' },
+    tpl_soul_grimoire: { id: 'tpl_soul_grimoire', name: 'Grimório das Almas', slot: 'weapon', kind: 'grimoire', icon: 'item_grimoire', baseAtk: 4, baseMag: 16, range: 170, ranged: true, speed: 1.05, element: 'arcane', value: 78, desc: 'Dispara dois projéteis duplos teleguiados!' },
+    tpl_heavy_crossbow: { id: 'tpl_heavy_crossbow', name: 'Besta de Cerco', slot: 'weapon', kind: 'crossbow', icon: 'item_crossbow', baseAtk: 16, baseMag: 2, range: 200, ranged: true, speed: 0.90, element: 'physical', bonusCrit: 0.08, value: 72, desc: 'Virotes de altíssima velocidade com +8% Crítico.' },
+    tpl_twin_fangs: { id: 'tpl_twin_fangs', name: 'Presas Voltaicas', slot: 'weapon', kind: 'dagger', icon: 'item_dagger', baseAtk: 12, baseMag: 6, range: 24, arc: 1.5, speed: 1.55, element: 'lightning', bonusCrit: 0.06, value: 76, desc: 'Adagas elétricas ultrarrápidas (+6% Crítico).' },
+    tpl_storm_bow: { id: 'tpl_storm_bow', name: 'Arco Voltaico', slot: 'weapon', kind: 'bow', icon: 'item_bow', baseAtk: 14, baseMag: 8, range: 195, ranged: true, speed: 1.24, element: 'lightning', value: 82, desc: 'Flechas relâmpago que eletrificam poças d’água.' },
+    tpl_void_katana: { id: 'tpl_void_katana', name: 'Katana do Vazio', slot: 'weapon', kind: 'sword', icon: 'item_sword', baseAtk: 16, baseMag: 9, range: 32, arc: 2.1, speed: 1.24, element: 'arcane', bonusCrit: 0.10, value: 92, desc: 'Lâmina abissal ágil com +10% Crítico.' },
+    tpl_crystal_greatsword: { id: 'tpl_crystal_greatsword', name: 'Montante Cristalina', slot: 'weapon', kind: 'sword', icon: 'item_sword', baseAtk: 21, baseMag: 10, range: 34, arc: 2.5, speed: 0.80, element: 'arcane', value: 95, desc: 'Montante gigante de enorme alcance e dano mágico.' },
+    tpl_eclipse_blade: { id: 'tpl_eclipse_blade', name: 'Lâmina do Eclipse', slot: 'weapon', kind: 'sword', icon: 'item_sword', baseAtk: 19, baseMag: 11, range: 31, arc: 2.2, speed: 1.05, element: 'ice', bonusCrit: 0.07, value: 98, desc: 'Espada real de Kaelen banhada em gelo eterno.' },
 
-    // Armaduras
+    // Armaduras (9 opções)
     tpl_guard_plate: { id: 'tpl_guard_plate', name: 'Armadura da Guarda', slot: 'armor', icon: 'item_armor', baseDef: 5, bonusHp: 15, value: 32 },
-    tpl_rune_robe: { id: 'tpl_rune_robe', name: 'Manto Arcano', slot: 'armor', icon: 'item_armor', baseDef: 2, bonusMp: 22, bonusMag: 4, value: 32 },
+    tpl_rune_robe: { id: 'tpl_rune_robe', name: 'Manto Arcano', slot: 'armor', icon: 'item_armor', baseDef: 2, bonusMp: 24, bonusMag: 5, value: 32 },
     tpl_night_leather: { id: 'tpl_night_leather', name: 'Couro das Sombras', slot: 'armor', icon: 'item_armor', baseDef: 3, bonusSpeed: 10, bonusCrit: 0.06, value: 34 },
-    tpl_dragon_mail: { id: 'tpl_dragon_mail', name: 'Cota Dracônica', slot: 'armor', icon: 'item_armor', baseDef: 8, bonusHp: 30, resist: 'fire', value: 78 },
-    tpl_void_shroud: { id: 'tpl_void_shroud', name: 'Mortalha do Abismo', slot: 'armor', icon: 'item_armor', baseDef: 6, bonusMp: 25, bonusCrit: 0.08, resist: 'arcane', value: 84 },
+    tpl_templar_aegis: { id: 'tpl_templar_aegis', name: 'Couraça Solar', slot: 'armor', icon: 'item_armor', baseDef: 6, bonusHp: 22, resist: 'fire', value: 48 },
+    tpl_ranger_cloak: { id: 'tpl_ranger_cloak', name: 'Manto do Caçador', slot: 'armor', icon: 'item_armor', baseDef: 3, bonusSpeed: 12, bonusCrit: 0.08, value: 46 },
+    tpl_dragon_mail: { id: 'tpl_dragon_mail', name: 'Cota Dracônica', slot: 'armor', icon: 'item_armor', baseDef: 9, bonusHp: 35, resist: 'fire', value: 82 },
+    tpl_glacier_plate: { id: 'tpl_glacier_plate', name: 'Placa Glacial', slot: 'armor', icon: 'item_armor', baseDef: 9, bonusHp: 28, bonusMag: 4, resist: 'ice', value: 85 },
+    tpl_shadow_vestments: { id: 'tpl_shadow_vestments', name: 'Veste Venenosa', slot: 'armor', icon: 'item_armor', baseDef: 6, bonusSpeed: 12, bonusCrit: 0.07, resist: 'poison', value: 78 },
+    tpl_void_shroud: { id: 'tpl_void_shroud', name: 'Mortalha do Abismo', slot: 'armor', icon: 'item_armor', baseDef: 7, bonusMp: 28, bonusCrit: 0.09, resist: 'arcane', value: 88 },
 
-    // Relíquias
-    tpl_vamp_ring: { id: 'tpl_vamp_ring', name: 'Anel Carmesim', slot: 'relic', icon: 'item_relic', vampiric: 0.08, bonusHp: 10, value: 55, desc: 'Drena 8% do dano causado como Vida.' },
-    tpl_mana_amulet: { id: 'tpl_mana_amulet', name: 'Amuleto Etéreo', slot: 'relic', icon: 'item_relic', mpRegen: 2.5, bonusMp: 20, value: 52, desc: '+2.5/s de regeneração de Mana e +20 MP.' },
-    tpl_parry_seal: { id: 'tpl_parry_seal', name: 'Selo do Duelista', slot: 'relic', icon: 'item_relic', parryWindow: 0.12, bonusAtk: 4, value: 58, desc: 'Aumenta janela de Parry e +4 ATQ.' },
-    tpl_swift_boots: { id: 'tpl_swift_boots', name: 'Talismã do Vento', slot: 'relic', icon: 'item_relic', bonusSpeed: 14, stamRegen: 10, value: 50, desc: '+14 Velocidade e +10 Vigor/s.' },
-    tpl_prism_core: { id: 'tpl_prism_core', name: 'Núcleo Prismático', slot: 'relic', icon: 'item_relic', bonusMag: 7, bonusCrit: 0.08, value: 70, desc: '+7 Poder Mágico e +8% Chance Crítica.' },
+    // Relíquias (10 opções)
+    tpl_vamp_ring: { id: 'tpl_vamp_ring', name: 'Anel Carmesim', slot: 'relic', icon: 'item_relic', vampiric: 0.08, bonusHp: 12, value: 55, desc: 'Drena 8% do dano causado como Vida.' },
+    tpl_mana_amulet: { id: 'tpl_mana_amulet', name: 'Amuleto Etéreo', slot: 'relic', icon: 'item_relic', mpRegen: 2.8, bonusMp: 22, value: 52, desc: '+2.8/s de regeneração de Mana e +22 MP.' },
+    tpl_parry_seal: { id: 'tpl_parry_seal', name: 'Selo do Duelista', slot: 'relic', icon: 'item_relic', parryWindow: 0.14, bonusAtk: 5, value: 58, desc: 'Aumenta janela de Parry e +5 ATQ.' },
+    tpl_swift_boots: { id: 'tpl_swift_boots', name: 'Talismã do Vento', slot: 'relic', icon: 'item_relic', bonusSpeed: 15, stamRegen: 12, value: 50, desc: '+15 Velocidade e +12 Vigor/s.' },
+    tpl_prism_core: { id: 'tpl_prism_core', name: 'Núcleo Prismático', slot: 'relic', icon: 'item_relic', bonusMag: 8, bonusCrit: 0.08, value: 70, desc: '+8 Poder Mágico e +8% Chance Crítica.' },
+    tpl_glass_cannon: { id: 'tpl_glass_cannon', name: 'Olho do Abismo', slot: 'relic', icon: 'item_relic', bonusAtk: 10, bonusMag: 10, bonusCrit: 0.12, bonusHp: -20, value: 85, desc: '+10 ATQ/MAG e +12% Crítico (-20 HP). Ideal para Descomunal!' },
+    tpl_chrono_gear: { id: 'tpl_chrono_gear', name: 'Ampulheta Rúnica', slot: 'relic', icon: 'item_relic', bonusCdr: 0.18, bonusSpeed: 8, value: 78, desc: '-18% Tempo de Recarga das Habilidades e +8 Velocidade.' },
+    tpl_greed_idol: { id: 'tpl_greed_idol', name: 'Ídolo da Sabedoria', slot: 'relic', icon: 'item_relic', xpBonus: 0.25, goldBonus: 0.30, value: 74, desc: '+25% Experiência obtida e +30% Ouro.' },
+    tpl_thunder_crest: { id: 'tpl_thunder_crest', name: 'Brasão da Tormenta', slot: 'relic', icon: 'item_relic', bonusAtk: 7, bonusCrit: 0.10, resist: 'lightning', value: 76, desc: '+7 ATQ, +10% Crítico e resiste a Raio.' },
+    tpl_guardian_heart: { id: 'tpl_guardian_heart', name: 'Coração de Bastião', slot: 'relic', icon: 'item_relic', bonusHp: 40, bonusDef: 4, value: 75, desc: '+40 HP Máximo e +4 Defesa.' },
 
     // Consumíveis & Utilitários
     cons_hp_pot: { id: 'cons_hp_pot', name: 'Poção de Vida', slot: 'consumable', icon: 'item_potion_hp', healHp: 55, stackable: true, value: 18, desc: 'Restaura 55 de Vida imediatamente.' },
     cons_elixir: { id: 'cons_elixir', name: 'Elixir Supremo', slot: 'consumable', icon: 'item_potion_elixir', healHp: 120, healMp: 60, cureAll: true, stackable: true, value: 48, desc: 'Restaura 120 HP, 60 MP e cura veneno/queimadura.' },
     cons_mp_pot: { id: 'cons_mp_pot', name: 'Éter Arcano', slot: 'consumable', icon: 'item_potion_mp', healMp: 50, stackable: true, value: 18, desc: 'Restaura 50 de Mana imediatamente.' },
     cons_antidote: { id: 'cons_antidote', name: 'Antídoto Herbal', slot: 'consumable', icon: 'item_potion_antidote', cureAll: true, healHp: 20, stackable: true, value: 14, desc: 'Remove efeitos negativos e cura 20 HP.' },
+    cons_fury_tonic: { id: 'cons_fury_tonic', name: 'Tônico de Fúria', slot: 'consumable', icon: 'item_potion_elixir', healMp: 30, buffFury: true, stackable: true, value: 32, desc: 'Restaura Vigor máximo, +30 MP e garante próximo golpe Crítico!' },
     cons_scroll_fire: { id: 'cons_scroll_fire', name: 'Pergaminho Ígneo', slot: 'consumable', icon: 'item_scroll', spell: 'fire_ring', stackable: true, value: 28, desc: 'Explode onda de fogo ao redor, incendiando inimigos e óleo.' },
     cons_scroll_ice: { id: 'cons_scroll_ice', name: 'Pergaminho Glacial', slot: 'consumable', icon: 'item_scroll', spell: 'ice_nova', stackable: true, value: 28, desc: 'Congela inimigos próximos e transforma água em gelo.' },
-    cons_scroll_shock: { id: 'cons_scroll_shock', name: 'Pergaminho Voltaico', slot: 'consumable', icon: 'item_scroll', spell: 'lightning_storm', stackable: true, value: 30, desc: 'Dispara raios em cadeia pela sala inteira.' }
+    cons_scroll_shock: { id: 'cons_scroll_shock', name: 'Pergaminho Voltaico', slot: 'consumable', icon: 'item_scroll', spell: 'lightning_storm', stackable: true, value: 30, desc: 'Dispara raios em cadeia pela sala inteira.' },
+    cons_scroll_void: { id: 'cons_scroll_void', name: 'Pergaminho do Vazio', slot: 'consumable', icon: 'item_scroll', spell: 'void_implosion', stackable: true, value: 36, desc: 'Implode a sala com dano arcano massivo e atordoa todos os inimigos.' }
   };
 
   const AFFIXES = [
@@ -551,6 +829,8 @@ window.Game8Bit = window.Game8Bit || {};
       atk: Math.round((tpl.baseAtk || 0) * rar.mult),
       mag: Math.round((tpl.baseMag || 0) * rar.mult),
       def: Math.round((tpl.baseDef || 0) * rar.mult),
+      bonusAtk: Math.round((tpl.bonusAtk || 0) * rar.mult),
+      bonusMag: Math.round((tpl.bonusMag || 0) * rar.mult),
       bonusHp: Math.round((tpl.bonusHp || 0) * rar.mult),
       bonusMp: Math.round((tpl.bonusMp || 0) * rar.mult),
       bonusSpeed: tpl.bonusSpeed || 0,
@@ -559,6 +839,9 @@ window.Game8Bit = window.Game8Bit || {};
       mpRegen: tpl.mpRegen || 0,
       stamRegen: tpl.stamRegen || 0,
       parryWindow: tpl.parryWindow || 0,
+      bonusCdr: tpl.bonusCdr || 0,
+      xpBonus: tpl.xpBonus || 0,
+      goldBonus: tpl.goldBonus || 0,
       resist: tpl.resist || null,
       affixes: [],
       value: Math.round((tpl.value || 25) * rar.mult),
@@ -568,24 +851,24 @@ window.Game8Bit = window.Game8Bit || {};
   }
 
   function generateProceduralLoot(rng, floorNum, forcedSlot = null, minRarity = null) {
-    // Chance de consumível vs equipamento
-    if (!forcedSlot && rng.chance(0.32)) {
-      const pool = ['cons_hp_pot', 'cons_mp_pot', 'cons_antidote', 'cons_scroll_fire', 'cons_scroll_ice', 'cons_scroll_shock', 'cons_elixir'];
-      const weights = floorNum >= 3 ? pool : pool.slice(0, 6);
+    // Chance de consumível vs equipamento (ajustada para dropar mais armas/relíquias ricas!)
+    if (!forcedSlot && rng.chance(0.28)) {
+      const pool = ['cons_hp_pot', 'cons_mp_pot', 'cons_antidote', 'cons_fury_tonic', 'cons_scroll_fire', 'cons_scroll_ice', 'cons_scroll_shock', 'cons_scroll_void', 'cons_elixir'];
+      const weights = floorNum >= 3 ? pool : pool.slice(0, 7);
       return makeTemplateItem(rng.pick(weights));
     }
 
-    const slots = forcedSlot ? [forcedSlot] : ['weapon', 'weapon', 'armor', 'relic'];
+    const slots = forcedSlot ? [forcedSlot] : ['weapon', 'weapon', 'weapon', 'armor', 'relic'];
     const targetSlot = rng.pick(slots);
     const pool = Object.values(ITEM_TEMPLATES).filter(t => t.slot === targetSlot);
     const tpl = rng.pick(pool);
 
-    const roll = rng.next() + (floorNum - 1) * 0.12;
+    const roll = rng.next() + (floorNum - 1) * 0.14;
     let rarityId = 'comum';
-    if (roll > 1.15) rarityId = 'lendario';
-    else if (roll > 0.92) rarityId = 'epico';
-    else if (roll > 0.65) rarityId = 'raro';
-    else if (roll > 0.34) rarityId = 'incomum';
+    if (roll > 1.24) rarityId = 'lendario';
+    else if (roll > 0.94) rarityId = 'epico';
+    else if (roll > 0.64) rarityId = 'raro';
+    else if (roll > 0.30) rarityId = 'incomum';
 
     const order = ['comum', 'incomum', 'raro', 'epico', 'lendario'];
     if (minRarity && order.indexOf(rarityId) < order.indexOf(minRarity)) {
@@ -615,7 +898,7 @@ window.Game8Bit = window.Game8Bit || {};
     return item;
   }
 
-  // Receitas da Forja Rúnica
+  // Receitas da Forja Rúnica (6 receitas)
   const FORGE_RECIPES = [
     {
       id: 'craft_elixir',
@@ -626,6 +909,16 @@ window.Game8Bit = window.Game8Bit || {};
       shards: { arcane: 1, poison: 1 },
       type: 'consumable',
       resultTpl: 'cons_elixir'
+    },
+    {
+      id: 'craft_fury_tonic',
+      name: 'Destilar Tônico de Fúria',
+      icon: 'item_potion_elixir',
+      desc: 'Recupera Vigor total + 30 MP e garante próximo ataque Crítico.',
+      gold: 16,
+      shards: { fire: 1, lightning: 1 },
+      type: 'consumable',
+      resultTpl: 'cons_fury_tonic'
     },
     {
       id: 'craft_bombs',
@@ -648,19 +941,30 @@ window.Game8Bit = window.Game8Bit || {};
       qty: 1
     },
     {
+      id: 'craft_epic_weapon',
+      name: 'Forjar Arma Rúnica (Épico+)',
+      icon: 'item_sword',
+      desc: 'Forja uma Arma aleatória de raridade Épica garantida.',
+      gold: 55,
+      shards: { fire: 1, arcane: 1 },
+      type: 'loot',
+      slot: 'weapon',
+      minRarity: 'epico'
+    },
+    {
       id: 'craft_legend_relic',
-      name: 'Forjar Núcleo Prismático (Épico)',
+      name: 'Forjar Relíquia Lendária',
       icon: 'item_relic',
-      desc: 'Cria uma Relíquia Épica com bônus mágicos e críticos elevados.',
-      gold: 60,
-      shards: { fire: 1, ice: 1, lightning: 1 },
+      desc: 'Cria uma Relíquia Lendária com bônus raros.',
+      gold: 85,
+      shards: { fire: 1, ice: 1, lightning: 1, arcane: 1 },
       type: 'loot',
       slot: 'relic',
-      minRarity: 'epico'
+      minRarity: 'lendario'
     }
   ];
 
-  // Bênçãos de Santuário & Nível (12 perks sinérgicos)
+  // Bênçãos de Santuário & Nível (16 perks sinérgicos)
   const BLESSINGS = [
     { id: 'blood_pact', name: 'Pacto Carmesim', desc: '+18% Dano total e +5% Roubo de Vida.', icon: 'item_sword', apply: p => { p.perks.dmgMult += 0.18; p.perks.lifesteal += 0.05; } },
     { id: 'iron_bastion', name: 'Bastião de Ferro', desc: '+25 HP Máx, +4 Defesa e reduz dano bloqueado em 90%.', icon: 'item_armor', apply: p => { p.bonusMaxHp += 25; p.hp = Math.min(p.getMaxHp(), p.hp + 25); p.perks.flatDef += 4; } },
@@ -671,19 +975,102 @@ window.Game8Bit = window.Game8Bit || {};
     { id: 'venom_mastery', name: 'Mestre das Toxinas', desc: 'Dano de Veneno dobra e inimigos envenenados explodem ao morrer.', icon: 'shard_poison', apply: p => { p.perks.venomBurst = true; } },
     { id: 'treasure_hunter', name: 'Olho de Ouro', desc: '+40% Ouro encontrado e baús sempre dão Fragmentos extras.', icon: 'item_coin', apply: p => { p.perks.goldMult += 0.40; } },
     { id: 'critical_fury', name: 'Fúria Letal', desc: '+15% Chance Crítica e Críticos causam 2.1x de dano.', icon: 'item_dagger', apply: p => { p.perks.bonusCrit += 0.15; p.perks.critMult += 0.35; } },
-    { id: 'phoenix_spark', name: 'Centelha da Fênix', desc: '1x por andar, sobrevive a um golpe fatal com 40% de Vida e explode em fogo.', icon: 'item_potion_elixir', apply: p => { p.perks.reviveFloor = true; } },
+    { id: 'phoenix_spark', name: 'Centelha da Fênix', desc: '1x por andar, sobrevive a um golpe fatal com 40% HP (desativado em Descomunal).', icon: 'item_potion_elixir', apply: p => { p.perks.reviveFloor = true; } },
     { id: 'bomb_expert', name: 'Alquimista Explosivo', desc: '+3 Bombas imediatas e explosões causam +50% de dano.', icon: 'item_bomb', apply: p => { p.bombs += 3; p.perks.bombMult += 0.50; } },
-    { id: 'vital_surge', name: 'Fluxo Vital', desc: 'Regenera 1.5 HP/s fora de combate e +25% eficácia de Poções.', icon: 'item_potion_hp', apply: p => { p.perks.hpRegen += 1.5; p.perks.potionMult += 0.25; } }
+    { id: 'vital_surge', name: 'Fluxo Vital', desc: 'Regenera 1.5 HP/s fora de combate e +25% eficácia de Poções.', icon: 'item_potion_hp', apply: p => { p.perks.hpRegen += 1.5; p.perks.potionMult += 0.25; } },
+    { id: 'wind_runner', name: 'Passos do Vendaval', desc: '+14 Velocidade e recarga de Dash 30% mais rápida.', icon: 'item_bow', apply: p => { p.bonusSpeed = (p.bonusSpeed || 0) + 14; p.perks.dashCdr = (p.perks.dashCdr || 0) + 0.30; } },
+    { id: 'sage_wisdom', name: 'Sabedoria Antiga', desc: '+30% Experiência obtida e +15 Poder Mágico.', icon: 'item_grimoire', apply: p => { p.perks.xpMult = (p.perks.xpMult || 0) + 0.30; p.bonusMag += 15; } },
+    { id: 'duelist_reflex', name: 'Reflexo de Duelista', desc: 'Aumenta janela de Parry Perfeito em +120ms e +8 ATQ.', icon: 'item_spear', apply: p => { p.perks.parryBonus = (p.perks.parryBonus || 0) + 0.12; p.bonusAtk += 8; } },
+    { id: 'loot_seeker', name: 'Faro do Caçador', desc: '+35% Chance de Drops raros e +2 Chaves imediatas.', icon: 'item_key', apply: p => { p.keys += 2; p.perks.dropBonus = (p.perks.dropBonus || 0) + 0.35; } }
   ];
 
-  // Meta-progressão permanente (Altar das Almas Ancestrais)
+  // Meta-progressão permanente (Altar das Almas Ancestrais — 9 melhorias)
   const META_UPGRADES = [
     { id: 'meta_hp', name: 'Vigor Ancestral', maxRank: 5, baseCost: 12, desc: '+10 HP inicial por nível.', perRank: '+10 HP' },
     { id: 'meta_atk', name: 'Têmpera Rúnica', maxRank: 5, baseCost: 15, desc: '+2 ATQ e +2 MAG por nível.', perRank: '+2 ATQ/MAG' },
     { id: 'meta_gold', name: 'Herança Mercante', maxRank: 4, baseCost: 10, desc: '+20 Ouro inicial por nível.', perRank: '+20 Ouro' },
     { id: 'meta_potions', name: 'Alforje Reforçado', maxRank: 3, baseCost: 16, desc: '+1 Poção de Vida e +1 Bomba ao iniciar.', perRank: '+1 Poção/Bomba' },
     { id: 'meta_crit', name: 'Instinto Sombrio', maxRank: 4, baseCost: 18, desc: '+3% Chance Crítica base por nível.', perRank: '+3% Crit' },
-    { id: 'meta_shards', name: 'Sintonia Elemental', maxRank: 3, baseCost: 20, desc: 'Começa a expedição com Fragmentos Elementais aleatórios.', perRank: '+2 Fragmentos' }
+    { id: 'meta_shards', name: 'Sintonia Elemental', maxRank: 3, baseCost: 20, desc: 'Começa a expedição com Fragmentos Elementais aleatórios.', perRank: '+2 Fragmentos' },
+    { id: 'meta_xp', name: 'Erudição Ancestral', maxRank: 4, baseCost: 14, desc: '+12% de Experiência obtida por nível.', perRank: '+12% XP' },
+    { id: 'meta_greed', name: 'Fortuna do Abismo', maxRank: 4, baseCost: 16, desc: '+12% Taxa de Drop e +10% Ouro por nível.', perRank: '+12% Drop' },
+    { id: 'meta_cdr', name: 'Reflexo Etéreo', maxRank: 3, baseCost: 22, desc: '-8% Recarga de Skills e Dash por nível.', perRank: '-8% Recarga' }
+  ];
+
+  // História Expandida (6 Capítulos da Crônica)
+  const STORY_CHAPTERS = [
+    {
+      floor: 1,
+      id: 'ch_1',
+      title: 'Prólogo — A Coroa Partida de Aurelia',
+      text: 'Há trezentos anos, o Reino de Aurelia brilhava sob a Coroa Prismática. Quando o Arquiduque Malakor rompeu o selo para usurpar a imortalidade, a capital afundou em seis estratos abissais. Apenas as Catacumbas de Obsidiana separam você da descida.'
+    },
+    {
+      floor: 2,
+      id: 'ch_2',
+      title: 'Capítulo II — Águas Podres de Miasma',
+      text: 'Abaixo das criptas, os antigos aquedutos reais transformaram-se num pântano vivo de esporos e veneno. Dizem as crônicas que Vespera, a Hidra Guardiã, bebeu o primeiro fragmento da Coroa e envenenou toda a nascente.'
+    },
+    {
+      floor: 3,
+      id: 'ch_3',
+      title: 'Capítulo III — Os Martelos de Ignis',
+      text: 'O calor das profundezas anuncia as grandes fornalhas onde o titã Ignis Rex fundiu legiões de ferro e obsidiana. Aqui, aço e alquimia se chocam: apenas quem domina óleo e chamas atravessa vivo.'
+    },
+    {
+      floor: 4,
+      id: 'ch_4',
+      title: 'Capítulo IV — Os Espelhos de Lyra',
+      text: 'A Grande Biblioteca de Aurelia flutua num oceano de água rúnica. A Arquimaga Lyra tentou reescrever o ritual para aprisionar Malakor, mas o éter estilhaçou sua mente em mil reflexos elétricos.'
+    },
+    {
+      floor: 5,
+      id: 'ch_5',
+      title: 'Capítulo V — O Voto Congelado',
+      text: 'Na Bastilha Glacial, Lorde Kaelen — outrora o maior campeão da Guarda Solar — congelou seu próprio coração para impedir qualquer herdeiro de alcançar a sala do trono antes do Eclipse eterno.'
+    },
+    {
+      floor: 6,
+      id: 'ch_6',
+      title: 'Capítulo Final — O Trono do Abismo',
+      text: 'No sexto círculo não há mais retorno. Malakor reúne fogo, gelo, raio e veneno em sua forma primordial. Purifique a Coroa Partida e reescreva a história de Aurelia — ou torne-se mais uma alma errante do Altar.'
+    }
+  ];
+
+  // Inscrições antigas encontradas em Tábuas de Lore (12 fragmentos)
+  const LORE_FRAGMENTS = [
+    { id: 'lore_1', floor: 1, title: 'Juramento da Guarda', text: '“Seguramos o escudo até a lâmina partir. Um Parry no instante do clarão devolve a fúria do inimigo.”' },
+    { id: 'lore_2', floor: 1, title: 'Selo Secreto das Pedras', text: '“Paredes rachadas escondem câmaras antigas de tesouro. Nenhuma pedra resiste a uma bomba rúnica bem posta.”' },
+    { id: 'lore_3', floor: 2, title: 'Diário do Boticário', text: '“O miasma do pântano detona em contato com o fogo. Jamais carregue tochas descuidadas sobre poças de óleo.”' },
+    { id: 'lore_4', floor: 2, title: 'Lamento de Vespera', text: '“Antes de se tornar hidra, Vespera guardava os jardins reais. A ambição da Coroa retorceu até as raízes.”' },
+    { id: 'lore_5', floor: 3, title: 'Tratado da Forja Viva', text: '“Dois fragmentos elementais moldam o destino de uma arma comum. A bigorna nunca recusa sangue e ouro.”' },
+    { id: 'lore_6', floor: 3, title: 'Segredo do Relâmpago', text: '“Água parada conduz a tempestade. Um raio lançado na poça atordoa todo o batalhão inimigo de uma só vez.”' },
+    { id: 'lore_7', floor: 4, title: 'Notas da Arquimaga Lyra', text: '“Malakor não quer governar Aurelia. Ele alimenta-se das Almas Ancestrais presas no ciclo eterno do Altar.”' },
+    { id: 'lore_8', floor: 4, title: 'Código dos Enigmas', text: '“As placas rúnicas só reconhecem ordem e equilíbrio. Se errar o caminho, ative o pedestal rúnico para recomeçar.”' },
+    { id: 'lore_9', floor: 5, title: 'Carta de Kaelen', text: '“Perdoem-me, irmãos solares. Selo este andar em gelo porque temo o que despertará se alguém falhar no Trono.”' },
+    { id: 'lore_10', floor: 5, title: 'O Modo Descomunal', text: '“Apenas os escolhidos do Eclipse atravessam a cidadela sem sofrer um único arranhão. A perfeição cobra sua taxa.”' },
+    { id: 'lore_11', floor: 6, title: 'Profecia da Coroa', text: '“Seis selos caídos, quatro elementos em guerra. Somente quem forjar mente, aço e alquimia restaurará a aurora.”' },
+    { id: 'lore_12', floor: 6, title: 'Ecos da Eternidade', text: '“Mesmo após a queda do Soberano, o Abismo Infinito chama pelos audazes além do sétimo portão.”' }
+  ];
+
+  // Sistema de Conquistas (16 Achievements persistentes)
+  const ACHIEVEMENTS = [
+    { id: 'first_blood', name: 'Primeiro Sangue', desc: 'Derrote seu primeiro monstro no Abismo.', icon: 'item_sword', reward: 5, target: 1, stat: 'totalKills' },
+    { id: 'slayer_100', name: 'Exterminador do Abismo', desc: 'Derrote 100 monstros ao longo de suas expedições.', icon: 'item_axe', reward: 20, target: 100, stat: 'totalKills' },
+    { id: 'parry_master', name: 'Muro Impenetrável', desc: 'Execute 10 Parrys Perfeitos com escudo.', icon: 'item_armor', reward: 15, target: 10, stat: 'totalParries' },
+    { id: 'alchemist', name: 'Alquimista Caótico', desc: 'Ative 10 reações elementais no terreno.', icon: 'shard_fire', reward: 12, target: 10, stat: 'totalReactions' },
+    { id: 'secret_finder', name: 'Olho de Lince', desc: 'Exploda uma parede rachada e encontre uma Câmara Secreta.', icon: 'item_bomb', reward: 15, target: 1, stat: 'secretsFound' },
+    { id: 'puzzle_solver', name: 'Mente Brilhante', desc: 'Resolva 3 enigmas completos nas salas de puzzle.', icon: 'item_key', reward: 18, target: 3, stat: 'puzzlesSolved' },
+    { id: 'forger', name: 'Mestre Ferreiro', desc: 'Reforje ou fabrique 3 itens na Forja Rúnica.', icon: 'item_hammer', reward: 15, target: 3, stat: 'itemsForged' },
+    { id: 'boss_bane', name: 'Caçador de Titãs', desc: 'Derrote 5 Chefes de andar.', icon: 'boss_bone_king', reward: 25, target: 5, stat: 'totalBosses' },
+    { id: 'collector', name: 'Relíquia Dourada', desc: 'Encontre ou equipe um equipamento Lendário.', icon: 'item_relic', reward: 20 },
+    { id: 'lore_scholar', name: 'Cronista de Aurelia', desc: 'Descubra 6 inscrições diferentes em Tábuas de Lore.', icon: 'item_grimoire', reward: 18 },
+    { id: 'class_explorer', name: 'Força Versátil', desc: 'Alcance o Andar 3 com pelo menos 3 classes diferentes.', icon: 'hero_ranger', reward: 25 },
+    { id: 'high_level', name: 'Poder Crescente', desc: 'Alcance o Nível 8 em uma única expedição.', icon: 'item_potion_elixir', reward: 20 },
+    { id: 'campaign_clear', name: 'Luz no Abismo', desc: 'Derrote Malakor no Andar 6 em qualquer dificuldade.', icon: 'item_boss_key', reward: 35 },
+    { id: 'veteran_clear', name: 'Sobrevivente Tático', desc: 'Vença os 6 Andares na dificuldade Veterano ou superior.', icon: 'item_spear', reward: 45 },
+    { id: 'nightmare_clear', name: 'Senhor do Pesadelo', desc: 'Vença os 6 Andares na dificuldade Pesadelo ou Descomunal.', icon: 'item_scythe', reward: 70 },
+    { id: 'descomunal_clear', name: 'LENDA DESCOMUNAL', desc: 'Vença a campanha na dificuldade DESCOMUNAL (Sem levar dano)!', icon: 'item_soul', reward: 150 }
   ];
 
   const CHEMISTRY_GUIDE = [
@@ -691,8 +1078,8 @@ window.Game8Bit = window.Game8Bit || {};
     { title: 'RAIO + ÁGUA', color: '#f8e858', desc: 'Ataques de Raio em água eletrificam toda a poça conectada, causando dano elétrico e atordoamento em área!' },
     { title: 'GELO + ÁGUA', color: '#38d8e8', desc: 'Magias de Gelo congelam água em piso escorregadio e aplicam Lentidão/Congelamento.' },
     { title: 'FOGO + GELO / VENENO', color: '#b8f848', desc: 'Fogo derrete gelo em água e detona nuvens tóxicas causando explosões térmicas!' },
-    { title: 'PARRY PERFEITO [ESPAÇO]', color: '#4898f8', desc: 'Erguer o escudo nos 240ms antes de um golpe reflete projéteis em 2x e atordoa atacantes corpo-a-corpo!' },
-    { title: 'PAREDES RACHADAS [B]', color: '#f8b818', desc: 'Use Bombas perto de paredes rachadas para revelar Câmaras Secretas com tesouros raros!' }
+    { title: 'PARRY PERFEITO [ESPAÇO]', color: '#4898f8', desc: 'Erguer o escudo nos 240ms antes de um golpe reflete projéteis em 2x e anula qualquer dano (essencial em Descomunal!).' },
+    { title: 'PAREDES RACHADAS & ENIGMAS', color: '#f8b818', desc: 'Use Bombas [B] em paredes rachadas para achar Câmaras Secretas. Em enigmas de sequência ou blocos, aperte [E] na pedra rúnica para reiniciar.' }
   ];
 
   G.GameData = {
@@ -708,6 +1095,9 @@ window.Game8Bit = window.Game8Bit || {};
     FORGE_RECIPES,
     BLESSINGS,
     META_UPGRADES,
+    STORY_CHAPTERS,
+    LORE_FRAGMENTS,
+    ACHIEVEMENTS,
     CHEMISTRY_GUIDE,
     makeTemplateItem,
     generateProceduralLoot
