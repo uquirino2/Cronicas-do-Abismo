@@ -916,14 +916,15 @@ window.Game8Bit = window.Game8Bit || {};
         content = `<div class="codex-grid">` + allFoes.map(f => {
           const kills = this.game.meta.codexEnemies[f.id] || 0;
           const sp = G.SpriteBank.getIcon(f.sprite + '_0');
-          const weakTxt = f.weak ? G.ELEMENT_META[f.weak].name : 'Nenhuma';
+          const weakTxt = f.weak ? G.ELEMENT_META[f.weak].name : (f.runeImmune ? 'Armas Físicas' : 'Nenhuma');
+          const tagTxt = f.runeImmune ? ' • Imune a Runas' : '';
           return `
             <div class="codex-card ${kills > 0 ? '' : 'locked-entry'}">
               <div class="codex-head">
                 <img src="${sp}" class="pixel-icon-md">
                 <div>
                   <b>${kills > 0 ? f.name : '??? (Desconhecido)'}</b>
-                  <small>${kills > 0 ? `Derrotados: ${kills} • Fraqueza: ${weakTxt}` : 'Derrote na masmorra para revelar'}</small>
+                  <small>${kills > 0 ? `Derrotados: ${kills} • Fraqueza: ${weakTxt}${tagTxt}` : 'Derrote na masmorra para revelar'}</small>
                 </div>
               </div>
               <p>${kills > 0 ? f.lore : 'Criatura ainda não catalogada.'}</p>

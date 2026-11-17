@@ -126,23 +126,23 @@ window.Game8Bit = window.Game8Bit || {};
       name: 'Maga Rúnica',
       title: 'Tecelã de Éter',
       spritePrefix: 'hero_mage',
-      desc: 'Dispara projéteis arcanos à distância e amplifica reações elementais. Regenera mana rapidamente.',
+      desc: 'Dispara orbes arcanos à distância consumindo Mana e libera espirais elementais.',
       stats: {
-        maxHp: 84,
-        maxMp: 95,
-        maxStamina: 95,
-        atk: 7,
-        mag: 16,
+        maxHp: 76,
+        maxMp: 80,
+        maxStamina: 90,
+        atk: 6,
+        mag: 11,
         def: 2,
-        speed: 82,
-        crit: 0.10
+        speed: 78,
+        crit: 0.08
       },
-      growth: { hp: 10, mp: 14, atk: 1, mag: 4, def: 1 },
+      growth: { hp: 9, mp: 10, atk: 1, mag: 2, def: 1 },
       skill: {
         name: 'Nova Elemental',
-        cost: 22,
-        cooldown: 5.0,
-        desc: 'Libera 8 orbes elementais em espiral usando a afinidade da sua arma equipada.'
+        cost: 28,
+        cooldown: 6.2,
+        desc: 'Libera 6 orbes elementais em espiral usando a afinidade da sua arma equipada.'
       },
       parryBonus: 0.0,
       startWeapon: 'tpl_apprentice_staff',
@@ -312,10 +312,10 @@ window.Game8Bit = window.Game8Bit || {};
       floorB: '#261416',
       floorAccent: '#381a18',
       ambientDarkness: 0.22,
-      enemies: ['goblin', 'pyro', 'golem', 'slime', 'shield'],
+      enemies: ['goblin', 'pyro', 'golem', 'golem_runic', 'slime', 'shield'],
       hazards: ['oil', 'lava', 'spikes'],
       bossId: 'boss_ignis_rex',
-      lore: 'Nas bigornas titânicas, Ignis Rex forjou as armas amaldiçoadas que selaram o destino dos sete reinos.'
+      lore: 'Nas bigornas titânicas, Ignis Rex forjou as armas amaldiçoadas e autômatos antimagia que selaram os sete reinos.'
     },
     {
       id: 'library',
@@ -330,10 +330,10 @@ window.Game8Bit = window.Game8Bit || {};
       floorB: '#141e36',
       floorAccent: '#1c2a48',
       ambientDarkness: 0.26,
-      enemies: ['stalker', 'turret', 'cryo', 'necro', 'goblin'],
+      enemies: ['stalker', 'turret', 'cryo', 'necro', 'golem_runic', 'sentinel_null'],
       hazards: ['water', 'ice', 'spikes'],
       bossId: 'boss_lyra',
-      lore: 'Os espelhos rúnicos ainda ecoam os últimos feitiços de Lyra antes que o éter consumisse sua lucidez.'
+      lore: 'Os espelhos rúnicos ecoam os feitiços de Lyra enquanto guardiões imunes a runas patrulham o acervo proibido.'
     },
     {
       id: 'glacier',
@@ -348,7 +348,7 @@ window.Game8Bit = window.Game8Bit || {};
       floorB: '#102030',
       floorAccent: '#183044',
       ambientDarkness: 0.28,
-      enemies: ['cryo', 'fallen_knight', 'stalker', 'turret', 'golem'],
+      enemies: ['cryo', 'fallen_knight', 'stalker', 'turret', 'sentinel_null', 'golem'],
       hazards: ['ice', 'water', 'spikes'],
       bossId: 'boss_kaelen',
       lore: 'Lorde Kaelen congelou toda a vanguarda da Aurora num único voto de silêncio para proteger a entrada do trono.'
@@ -366,7 +366,7 @@ window.Game8Bit = window.Game8Bit || {};
       floorB: '#1c0c26',
       floorAccent: '#2b123b',
       ambientDarkness: 0.34,
-      enemies: ['fallen_knight', 'cryo', 'fungoid', 'stalker', 'necro', 'golem', 'pyro', 'turret'],
+      enemies: ['fallen_knight', 'cryo', 'fungoid', 'stalker', 'necro', 'golem', 'golem_runic', 'sentinel_null', 'pyro', 'turret'],
       hazards: ['oil', 'water', 'lava', 'spikes'],
       bossId: 'boss_malakor',
       lore: 'Onde o véu do mundo rasgou. Malakor empunha os quatro fragmentos da Coroa Partida aguardando o duelo final.'
@@ -609,6 +609,44 @@ window.Game8Bit = window.Game8Bit || {};
       gold: [16, 28],
       lore: 'Antigo cavaleiro corrompido pelo Eclipse. Executa investidas velozes carregadas de raio!'
     },
+    golem_runic: {
+      id: 'golem_runic',
+      name: 'Colosso Nulificador',
+      sprite: 'enemy_golem_runic',
+      hp: 118,
+      atk: 19,
+      speed: 32,
+      range: 24,
+      windup: 0.58,
+      cooldown: 1.55,
+      ai: 'melee',
+      element: 'physical',
+      weak: null,
+      resist: 'arcane',
+      runeImmune: true,
+      xp: 46,
+      gold: [14, 24],
+      lore: 'Blindado contra runas elementais: reduz magia em 75% e anula congelamento, chamas, veneno e atordoamento.'
+    },
+    sentinel_null: {
+      id: 'sentinel_null',
+      name: 'Sentinela Antimagia',
+      sprite: 'enemy_sentinel_null',
+      hp: 94,
+      atk: 18,
+      speed: 50,
+      range: 25,
+      windup: 0.44,
+      cooldown: 1.25,
+      ai: 'charger',
+      element: 'physical',
+      weak: null,
+      resist: 'arcane',
+      runeImmune: true,
+      xp: 52,
+      gold: [16, 26],
+      lore: 'Construto caçador de magos. Avança com investidas e anula 75% do dano mágico e status rúnicos.'
+    },
     mimic: {
       id: 'mimic',
       name: 'Baú Mímico',
@@ -728,7 +766,7 @@ window.Game8Bit = window.Game8Bit || {};
     // Armas (20 armas variadas em 8 arquétipos)
     tpl_iron_sword: { id: 'tpl_iron_sword', name: 'Espada de Ferro', slot: 'weapon', kind: 'sword', icon: 'item_sword', baseAtk: 10, baseMag: 0, range: 26, arc: 1.9, speed: 1.0, element: 'physical', value: 30, desc: 'Espada equilibrada com corte amplo.' },
     tpl_broad_axe: { id: 'tpl_broad_axe', name: 'Machado de Guerra', slot: 'weapon', kind: 'axe', icon: 'item_axe', baseAtk: 15, baseMag: 0, range: 28, arc: 2.4, speed: 0.78, element: 'physical', value: 45, desc: 'Golpe pesado de grande arco.' },
-    tpl_apprentice_staff: { id: 'tpl_apprentice_staff', name: 'Cajado Rúnico', slot: 'weapon', kind: 'staff', icon: 'item_staff', baseAtk: 4, baseMag: 12, range: 155, ranged: true, speed: 1.0, element: 'arcane', value: 34, desc: 'Dispara orbes arcanos à distância.' },
+    tpl_apprentice_staff: { id: 'tpl_apprentice_staff', name: 'Cajado Rúnico', slot: 'weapon', kind: 'staff', icon: 'item_staff', baseAtk: 3, baseMag: 8, range: 155, ranged: true, speed: 0.96, element: 'arcane', value: 34, desc: 'Dispara orbes arcanos à distância (5 MP por disparo).' },
     tpl_shadow_daggers: { id: 'tpl_shadow_daggers', name: 'Adagas Sombrias', slot: 'weapon', kind: 'dagger', icon: 'item_dagger', baseAtk: 9, baseMag: 2, range: 22, arc: 1.4, speed: 1.40, element: 'poison', value: 36, desc: 'Ataques velozes com veneno.' },
     tpl_rune_bow: { id: 'tpl_rune_bow', name: 'Arco Élfico', slot: 'weapon', kind: 'bow', icon: 'item_bow', baseAtk: 11, baseMag: 4, range: 185, ranged: true, speed: 1.15, element: 'physical', value: 42, desc: 'Dispara flechas velozes sem gastar mana.' },
     tpl_flame_blade: { id: 'tpl_flame_blade', name: 'Lâmina Solar', slot: 'weapon', kind: 'sword', icon: 'item_sword', baseAtk: 14, baseMag: 6, range: 28, arc: 2.0, speed: 1.06, element: 'fire', value: 65, desc: 'Espada flamejante que inflama óleo e inimigos.' },
@@ -749,7 +787,7 @@ window.Game8Bit = window.Game8Bit || {};
 
     // Armaduras (9 opções)
     tpl_guard_plate: { id: 'tpl_guard_plate', name: 'Armadura da Guarda', slot: 'armor', icon: 'item_armor', baseDef: 5, bonusHp: 15, value: 32 },
-    tpl_rune_robe: { id: 'tpl_rune_robe', name: 'Manto Arcano', slot: 'armor', icon: 'item_armor', baseDef: 2, bonusMp: 24, bonusMag: 5, value: 32 },
+    tpl_rune_robe: { id: 'tpl_rune_robe', name: 'Manto Arcano', slot: 'armor', icon: 'item_armor', baseDef: 2, bonusMp: 18, bonusMag: 3, value: 32 },
     tpl_night_leather: { id: 'tpl_night_leather', name: 'Couro das Sombras', slot: 'armor', icon: 'item_armor', baseDef: 3, bonusSpeed: 10, bonusCrit: 0.06, value: 34 },
     tpl_templar_aegis: { id: 'tpl_templar_aegis', name: 'Couraça Solar', slot: 'armor', icon: 'item_armor', baseDef: 6, bonusHp: 22, resist: 'fire', value: 48 },
     tpl_ranger_cloak: { id: 'tpl_ranger_cloak', name: 'Manto do Caçador', slot: 'armor', icon: 'item_armor', baseDef: 3, bonusSpeed: 12, bonusCrit: 0.08, value: 46 },
@@ -971,7 +1009,7 @@ window.Game8Bit = window.Game8Bit || {};
     { id: 'arcane_echo', name: 'Eco Arcano', desc: '+30 MP Máx, +20% Poder Mágico e -20% Recarga de Habilidade.', icon: 'item_staff', apply: p => { p.bonusMaxMp += 30; p.mp = Math.min(p.getMaxMp(), p.mp + 30); p.perks.magMult += 0.20; p.perks.cdr += 0.20; } },
     { id: 'storm_step', name: 'Passo Relâmpago', desc: 'Seu Dash libera um choque elétrico ao redor que atordoa.', icon: 'shard_lightning', apply: p => { p.perks.shockDash = true; } },
     { id: 'ember_soul', name: 'Alma Incandescente', desc: 'Ataques têm 35% de chance de incendiar e você é imune a Queimadura.', icon: 'shard_fire', apply: p => { p.perks.emberHit = true; p.perks.immuneFire = true; } },
-    { id: 'frost_heart', name: 'Coração Glacial', desc: 'Parry Perfeito congela inimigos próximos por 2.5s.', icon: 'shard_ice', apply: p => { p.perks.frostParry = true; } },
+    { id: 'frost_heart', name: 'Coração Glacial', desc: 'Parry Perfeito congela inimigos próximos (1.2s; 0.45s em chefes).', icon: 'shard_ice', apply: p => { p.perks.frostParry = true; } },
     { id: 'venom_mastery', name: 'Mestre das Toxinas', desc: 'Dano de Veneno dobra e inimigos envenenados explodem ao morrer.', icon: 'shard_poison', apply: p => { p.perks.venomBurst = true; } },
     { id: 'treasure_hunter', name: 'Olho de Ouro', desc: '+40% Ouro encontrado e baús sempre dão Fragmentos extras.', icon: 'item_coin', apply: p => { p.perks.goldMult += 0.40; } },
     { id: 'critical_fury', name: 'Fúria Letal', desc: '+15% Chance Crítica e Críticos causam 2.1x de dano.', icon: 'item_dagger', apply: p => { p.perks.bonusCrit += 0.15; p.perks.critMult += 0.35; } },

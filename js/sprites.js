@@ -824,6 +824,102 @@ window.Game8Bit = window.Game8Bit || {};
         '................'
       ], turretMap);
 
+      // Golem Nulificador (Imune a Runas) & Sentinela Antimagia (Imune a Runas)
+      const golemRunicMap = {
+        '.': null,
+        k: P.ink,
+        s: P.darkGray,
+        g: P.gray,
+        l: P.lightGray,
+        c: P.cyan,
+        p: P.purple,
+        w: P.white
+      };
+      this.compile('enemy_golem_runic_0', [
+        '....kkkkkkkk....',
+        '...kssssssssk...',
+        '..ksgllllllgsk..',
+        '..ksgwccccwgsk..',
+        '.kssgssssssgssk.',
+        'kssgspcsspcpgssk',
+        'ksgssppccppssgsk',
+        'ksggssccccssggsk',
+        'kssggspccpsggssk',
+        '.kssggggggggssk.',
+        '..kssggkkggssk..',
+        '..kssgk..kgssk..',
+        '..ksssk..ksssk..',
+        '..kllsk..ksllk..',
+        '..kkkkk..kkkkk..',
+        '................'
+      ], golemRunicMap);
+      this.compile('enemy_golem_runic_1', [
+        '................',
+        '....kkkkkkkk....',
+        '...kssssssssk...',
+        '..ksgllllllgsk..',
+        '..ksgwccccwgsk..',
+        '.kssgssssssgssk.',
+        'kssgspcsspcpgssk',
+        'ksgssppccppssgsk',
+        'ksggssccccssggsk',
+        'kssggspccpsggssk',
+        '.kssggggggggssk.',
+        '..kssggkkggssk..',
+        '.kssgk....kgssk.',
+        '.kllsk....ksllk.',
+        '.kkkkk....kkkkk.',
+        '................'
+      ], golemRunicMap);
+
+      const sentinelNullMap = {
+        '.': null,
+        k: P.ink,
+        d: P.deepBlue,
+        b: P.blue,
+        l: P.lightGray,
+        c: P.cyan,
+        p: P.violet,
+        w: P.white,
+        y: P.gold
+      };
+      this.compile('enemy_sentinel_null_0', [
+        '....kkkkkkkk....',
+        '...kddddddddk...',
+        '..kdlllllllldk..',
+        '..kdlccwwccldk..',
+        '.kdddlbbbbldddk.',
+        '.kdbbyppppybddk.',
+        '..kdbpyccypbdk..',
+        '.kkdbpccccpbdkk.',
+        '.kldbddddddbdlk.',
+        '.kldbbyybbldblk.',
+        '..kkddddddddkk..',
+        '...kdddkkdddk...',
+        '...kddk..kddk...',
+        '...kllk..kllk...',
+        '...kkkk..kkkk...',
+        '................'
+      ], sentinelNullMap);
+      this.compile('enemy_sentinel_null_1', [
+        '...kddddddddk...',
+        '..kdlllllllldk..',
+        '..kdlccwwccldk..',
+        '.kdddlbbbbldddk.',
+        '.kdbbyppppybddk.',
+        '..kdbpyccypbdk..',
+        '.kkdbpccccpbdkk.',
+        '.kldbddddddbdlk.',
+        '.kldbbyybbldblk.',
+        '..kkddddddddkk..',
+        '...kdddkkdddk...',
+        '..kddk....kddk..',
+        '..kllk....kllk..',
+        '..kkkk....kkkk..',
+        '................',
+        '................'
+      ], sentinelNullMap);
+
       const mimicMap = { '.': null, k: P.ink, b: P.brown, g: P.gold, r: P.red, w: P.white };
       this.compile('enemy_mimic_0', [
         '................',

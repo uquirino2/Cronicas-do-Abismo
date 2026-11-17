@@ -54,6 +54,9 @@ window.Game8Bit = window.Game8Bit || {};
             facingX: 0,
             facingY: 1,
             hitFlash: 0,
+            runeImmune: !!tpl.runeImmune,
+            freezeCooldown: 0,
+            chillTimer: 0,
             statuses: {},
             telegraph: null
           });
@@ -86,6 +89,7 @@ window.Game8Bit = window.Game8Bit || {};
             element: tpl.element,
             weak: tpl.weak,
             resist: tpl.resist,
+            runeImmune: !!tpl.runeImmune,
             flying: !!tpl.flying,
             xp: Math.round(tpl.xp * (spec.elite ? 1.85 : 1)),
             goldRange: tpl.gold,
@@ -99,6 +103,8 @@ window.Game8Bit = window.Game8Bit || {};
             hitFlash: 0,
             summonCount: 0,
             mini: !!spec.mini,
+            freezeCooldown: 0,
+            chillTimer: 0,
             statuses: {}
           });
         }
@@ -147,14 +153,25 @@ window.Game8Bit = window.Game8Bit || {};
       if (weapon && weapon.ranged) {
         // Disparo à distância (Cajado / Grimório / Arco / Besta)
         const isMagic = weapon.kind === 'staff' || weapon.kind === 'grimoire';
-        if (isMagic && p.mp >= 3) {
-          p.mp -= 3;
-          G.AudioEngine.playSFX('magic');
+        let mpFactor = 1.0;
+        if (isMagic) {
+          if (p.mp >= 5) {
+            p.mp -= 5;
+            G.AudioEngine.playSFX('magic');
+          } else {
+            mpFactor = 0.42;
+            G.AudioEngine.playSFX('bow');
+            if (!game._noManaCd) {
+              game._noManaCd = true;
+              setTimeout(() => (game._noManaCd = false), 900);
+              game.addFloatingText(p.x, p.y - 12, 'POUCA MANA!', P.sky);
+            }
+          }
         } else {
           G.AudioEngine.playSFX('bow');
         }
         const baseDmg = isMagic ? p.getMag() : p.getAtk();
-        const dmg = Math.round(baseDmg * (isCritRoll ? p.getCritMult() : 1.0));
+        const dmg = Math.max(1, Math.round(baseDmg * mpFactor * (isCritRoll ? p.getCritMult() : 1.0)));
         const projSpeed = weapon.kind === 'crossbow' ? 255 : (weapon.kind === 'bow' ? 215 : 172);
         const col = G.ELEMENT_META[elem].color;
 
@@ -341,21 +358,21 @@ window.Game8Bit = window.Game8Bit || {};
         game.addFloatingText(p.x, p.y - 14, 'IMPACTO!', P.gold);
       } else if (p.classId === 'mage') {
         const elem = p.equip.weapon ? p.equip.weapon.element : 'arcane';
-        const dmg = Math.round(p.getMag() * 1.5 + 8);
+        const dmg = Math.round(p.getMag() * 1.05 + 4);
         G.AudioEngine.playSFX('magic');
-        for (let i = 0; i < 8; i++) {
-          const a = (Math.PI * 2 * i) / 8 + p.aimAngle;
+        for (let i = 0; i < 6; i++) {
+          const a = (Math.PI * 2 * i) / 6 + p.aimAngle;
           game.projectiles.push({
             fromPlayer: true,
             x: p.x,
             y: p.y,
-            vx: Math.cos(a) * 160,
-            vy: Math.sin(a) * 160,
+            vx: Math.cos(a) * 156,
+            vy: Math.sin(a) * 156,
             dmg,
             element: elem,
             isCrit: false,
             radius: 4,
-            life: 1.15,
+            life: 1.05,
             color: G.ELEMENT_META[elem].color
           });
         }
@@ -692,8 +709,24 @@ window.Game8Bit = window.Game8Bit || {};
     // DANO & STATUS
     // ========================================================================
     applyStatus(target, type, duration, power) {
-      if (!target || target.hp <= 0) return;
+      if (!target || target.hp <= 0) return null;
+      if (target.runeImmune && (type === 'burn' || type === 'freeze' || type === 'poison' || type === 'stun')) {
+        return 'immune';
+      }
+      if (type === 'freeze') {
+        const cap = target.isBoss ? 0.45 : 1.4;
+        const dur = Math.min(duration, cap);
+        if ((target.freezeCooldown || 0) > 0) {
+          target.chillTimer = Math.max(target.chillTimer || 0, 1.4);
+          return 'chill';
+        }
+        target.statuses.freeze = { timer: dur, power: 0, tick: 0.45 };
+        target.freezeCooldown = target.isBoss ? 6.0 : 2.5;
+        target.chillTimer = 0;
+        return 'freeze';
+      }
       target.statuses[type] = { timer: duration, power: power || 3, tick: 0.45 };
+      return type;
     },
 
     damageEnemy(game, en, rawAmount, element = 'physical', kx = 0, ky = 0, isCrit = false, hitAngle = null) {
@@ -712,7 +745,10 @@ window.Game8Bit = window.Game8Bit || {};
 
       let mult = 1.0;
       let tag = '';
-      if (en.weak === element) {
+      if (en.runeImmune && element !== 'physical') {
+        mult *= 0.25;
+        tag = ' ANULADO!';
+      } else if (en.weak === element) {
         mult *= 1.45;
         tag = '!';
       } else if (en.resist === element) {
@@ -733,9 +769,9 @@ window.Game8Bit = window.Game8Bit || {};
         en.vy += ky;
       }
 
-      // Efeitos elementais secundários
+      // Efeitos elementais secundários (congelamento reduzido e bloqueado em imunes a runas)
       if (element === 'fire') this.applyStatus(en, 'burn', 3.0, 4);
-      else if (element === 'ice') this.applyStatus(en, 'freeze', en.isBoss ? 1.0 : 2.2, 0);
+      else if (element === 'ice') this.applyStatus(en, 'freeze', en.isBoss ? 0.35 : 1.0, 0);
       else if (element === 'poison') this.applyStatus(en, 'poison', 4.0, game.player.perks.venomBurst ? 6 : 3);
       else if (element === 'lightning' && Math.random() < 0.35) this.applyStatus(en, 'stun', 0.65, 0);
 
@@ -889,7 +925,12 @@ window.Game8Bit = window.Game8Bit || {};
 
         for (const en of (game.currentRoom.activeEnemies || [])) {
           if (en.hp > 0 && U.dist(p.x, p.y, en.x, en.y) <= 42) {
-            this.applyStatus(en, p.perks.frostParry ? 'freeze' : 'stun', p.perks.frostParry ? 2.5 : 1.6, 0);
+            this.applyStatus(
+              en,
+              p.perks.frostParry ? 'freeze' : 'stun',
+              p.perks.frostParry ? (en.isBoss ? 0.45 : 1.2) : (en.isBoss ? 0.8 : 1.6),
+              0
+            );
           }
         }
         return false;
@@ -969,6 +1010,8 @@ window.Game8Bit = window.Game8Bit || {};
           continue;
         }
         if (en.hitFlash > 0) en.hitFlash -= dt;
+        if (!en.statuses?.freeze && en.freezeCooldown > 0) en.freezeCooldown = Math.max(0, en.freezeCooldown - dt);
+        if (en.chillTimer > 0) en.chillTimer = Math.max(0, en.chillTimer - dt);
 
         // Status ticks
         this._tickStatuses(game, en, dt);
@@ -1402,6 +1445,9 @@ window.Game8Bit = window.Game8Bit || {};
     },
 
     _moveEntity(game, ent, dx, dy, flying) {
+      const spdMult = ent.chillTimer > 0 ? 0.7 : 1.0;
+      const mx = dx * spdMult;
+      const my = dy * spdMult;
       const room = game.currentRoom;
       const half = (ent.w || 12) * 0.45;
       const canStand = (nx, ny) => {
@@ -1415,8 +1461,8 @@ window.Game8Bit = window.Game8Bit || {};
         }
         return true;
       };
-      if (canStand(ent.x + dx, ent.y)) ent.x += dx;
-      if (canStand(ent.x, ent.y + dy)) ent.y += dy;
+      if (canStand(ent.x + mx, ent.y)) ent.x += mx;
+      if (canStand(ent.x, ent.y + my)) ent.y += my;
     },
 
     // ========================================================================

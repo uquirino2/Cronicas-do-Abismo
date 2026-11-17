@@ -779,6 +779,7 @@ window.Game8Bit = window.Game8Bit || {};
         this.player.x = 12 * TS;
         this.player.y = 8 * TS;
       }
+      this._unstuckPlayerIfNeeded(room, this.player);
 
       if (room.type === 'puzzle' && !room.puzzleSolved) {
         this.showBanner(room.loreTitle || 'SALA DE ENIGMA', room.loreText || 'Resolva o desafio das runas!');
@@ -855,7 +856,7 @@ window.Game8Bit = window.Game8Bit || {};
       // Regeneração de MP, Vigor e Vida (fora de combate / relíquias)
       const stamRate = 24 + (p.equip.relic1?.stamRegen || 0) + (p.equip.relic2?.stamRegen || 0);
       p.stamina = Math.min(p.getMaxStamina(), p.stamina + stamRate * dt);
-      const mpRate = (p.classId === 'mage' ? 2.6 : 1.0) + (p.equip.relic1?.mpRegen || 0) + (p.equip.relic2?.mpRegen || 0);
+      const mpRate = (p.classId === 'mage' ? 1.8 : 1.0) + (p.equip.relic1?.mpRegen || 0) + (p.equip.relic2?.mpRegen || 0);
       p.mp = Math.min(p.getMaxMp(), p.mp + mpRate * dt);
       if (p.perks.hpRegen > 0 && this.currentRoom.cleared) {
         p.hp = Math.min(p.getMaxHp(), p.hp + p.perks.hpRegen * dt);
@@ -907,11 +908,49 @@ window.Game8Bit = window.Game8Bit || {};
       this._movePlayerWithCollisions(vx * dt, vy * dt);
     },
 
+    _unstuckPlayerIfNeeded(room, p) {
+      if (!room || !p) return;
+      const half = 5;
+      const hasSolidOverlap = (nx, ny) => {
+        const corners = [[nx - half, ny - half], [nx + half, ny - half], [nx - half, ny + half], [nx + half, ny + half]];
+        for (const [cx, cy] of corners) {
+          const tx = Math.floor(cx / TS);
+          const ty = Math.floor(cy / TS);
+          if (tx < 0 || ty < 0 || tx >= D.ROOM_W || ty >= D.ROOM_H) return true;
+          if (D.isSolidTile(D.getTile(room, tx, ty))) return true;
+        }
+        return false;
+      };
+      if (!hasSolidOverlap(p.x, p.y)) return;
+
+      const ptx = U.clamp(Math.floor(p.x / TS), 1, D.ROOM_W - 2);
+      const pty = U.clamp(Math.floor(p.y / TS), 1, D.ROOM_H - 2);
+      for (let rad = 1; rad <= 4; rad++) {
+        for (let dy = -rad; dy <= rad; dy++) {
+          for (let dx = -rad; dx <= rad; dx++) {
+            const tx = ptx + dx;
+            const ty = pty + dy;
+            if (tx < 1 || ty < 1 || tx >= D.ROOM_W - 1 || ty >= D.ROOM_H - 1) continue;
+            const t = D.getTile(room, tx, ty);
+            if (D.isSolidTile(t) || t === TILE.LAVA) continue;
+            const cx = tx * TS + TS / 2;
+            const cy = ty * TS + TS / 2;
+            if (!hasSolidOverlap(cx, cy)) {
+              p.x = cx;
+              p.y = cy;
+              return;
+            }
+          }
+        }
+      }
+    },
+
     _movePlayerWithCollisions(dx, dy) {
       const p = this.player;
       const room = this.currentRoom;
+      this._unstuckPlayerIfNeeded(room, p);
 
-      const tryMove = (nx, ny) => {
+      const tryMove = (nx, ny, pushX, pushY) => {
         const half = 5;
         const corners = [[nx - half, ny - half], [nx + half, ny - half], [nx - half, ny + half], [nx + half, ny + half]];
         for (const [cx, cy] of corners) {
@@ -962,10 +1001,8 @@ window.Game8Bit = window.Game8Bit || {};
           }
 
           if (tile === TILE.BLOCK) {
-            // Tenta empurrar bloco no quebra-cabeça
-            const dirX = Math.abs(dx) > Math.abs(dy) ? Math.sign(dx) : 0;
-            const dirY = Math.abs(dy) >= Math.abs(dx) ? Math.sign(dy) : 0;
-            if (this._tryPushBlock(room, tx, ty, dirX, dirY)) return true;
+            // Tenta empurrar bloco no quebra-cabeça usando a direção exata do eixo
+            if ((pushX || pushY) && this._tryPushBlock(room, tx, ty, pushX, pushY)) return true;
             return false;
           }
 
@@ -974,10 +1011,10 @@ window.Game8Bit = window.Game8Bit || {};
         return true;
       };
 
-      const rx = tryMove(p.x + dx, p.y);
+      const rx = tryMove(p.x + dx, p.y, Math.sign(dx), 0);
       if (rx === 'transition') return;
       if (rx) p.x += dx;
-      const ry = tryMove(p.x, p.y + dy);
+      const ry = tryMove(p.x, p.y + dy, 0, Math.sign(dy));
       if (ry === 'transition') return;
       if (ry) p.y += dy;
 
@@ -1031,6 +1068,12 @@ window.Game8Bit = window.Game8Bit || {};
       const nx = bx + dirX;
       const ny = by + dirY;
       if (nx <= 1 || ny <= 1 || nx >= D.ROOM_W - 2 || ny >= D.ROOM_H - 2) return false;
+      // Nunca permite empurrar bloco na boca das portas ou na pedra rúnica de reinício
+      if (((nx === 11 || nx === 12) && (ny <= 2 || ny >= D.ROOM_H - 3)) ||
+          ((ny === 7 || ny === 8) && (nx <= 2 || nx >= D.ROOM_W - 3)) ||
+          (nx === 3 && ny === 3)) {
+        return false;
+      }
       const dest = D.getTile(room, nx, ny);
       if (dest !== TILE.FLOOR && dest !== TILE.FLOOR_ALT && dest !== TILE.PLATE) return false;
 
@@ -1129,14 +1172,45 @@ window.Game8Bit = window.Game8Bit || {};
       room.puzzleTimer = 0;
       G.AudioEngine.playSFX('levelUp');
       const minRar = (this.difficulty.id === 'nightmare' || this.difficulty.id === 'descomunal') ? 'epico' : 'raro';
-      D.setTile(room, 12, 7, TILE.CHEST);
-      room.chests['12,7'] = {
+
+      // Escolhe tile livre distante do jogador e longe de placas/portas para que o baú nunca prenda ninguém!
+      const p = this.player;
+      const isPlate = (x, y) => (room.plates || []).some(pl => pl.x === x && pl.y === y);
+      const candidates = [
+        [12, 7], [12, 5], [12, 9], [10, 7], [14, 7],
+        [9, 5], [15, 9], [9, 9], [15, 5], [7, 7], [16, 7], [12, 4], [12, 10]
+      ];
+      let chosen = null;
+      let fallback = null;
+      let fallbackDist = -1;
+      for (const [cx, cy] of candidates) {
+        const t = D.getTile(room, cx, cy);
+        if (D.isSolidTile(t) || t === TILE.LAVA || t === TILE.SPIKES || isPlate(cx, cy)) continue;
+        const hasOpenAdj = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([ax, ay]) => {
+          const at = D.getTile(room, cx + ax, cy + ay);
+          return !D.isSolidTile(at) && at !== TILE.LAVA && at !== TILE.SPIKES;
+        });
+        if (!hasOpenAdj) continue;
+        const d = p ? U.dist(p.x, p.y, cx * TS + 8, cy * TS + 8) : 99;
+        if (d >= 26) {
+          chosen = [cx, cy];
+          break;
+        }
+        if (d > fallbackDist) {
+          fallbackDist = d;
+          fallback = [cx, cy];
+        }
+      }
+      const [chestX, chestY] = chosen || fallback || [12, 7];
+      D.setTile(room, chestX, chestY, TILE.CHEST);
+      room.chests[`${chestX},${chestY}`] = {
         opened: false,
         gold: Math.round((38 + this.floor * 14) * (this.difficulty.lootMult || 1)),
         loot: G.GameData.generateProceduralLoot(this.rng, this.floor + 1, null, minRar),
         mimic: false
       };
-      this.addFloatingText(12 * TS, 6 * TS, 'ENIGMA RESOLVIDO!', P.gold);
+      this._unstuckPlayerIfNeeded(room, p);
+      this.addFloatingText(chestX * TS + 8, Math.max(18, chestY * TS - 10), 'ENIGMA RESOLVIDO!', P.gold);
       this.recordStat('puzzlesSolved', 1);
     },
 
@@ -1455,7 +1529,7 @@ window.Game8Bit = window.Game8Bit || {};
         for (const en of (room.activeEnemies || [])) {
           if (U.dist(p.x, p.y, en.x, en.y) <= 82) {
             G.Combat.damageEnemy(this, en, power * 0.85, 'ice', 0, 0, false);
-            G.Combat.applyStatus(en, 'freeze', 3.5, 0);
+            G.Combat.applyStatus(en, 'freeze', en.isBoss ? 0.45 : 1.4, 0);
           }
         }
       } else if (spell === 'lightning_storm') {
@@ -1934,9 +2008,12 @@ window.Game8Bit = window.Game8Bit || {};
       ctx.fillStyle = 'rgba(0,0,0,0.45)';
       ctx.fillRect(Math.round(en.x - size * 0.35), Math.round(en.y + size * 0.32), Math.round(size * 0.7), 3);
 
-      // Aura de Elite / Chave do Chefe
+      // Aura de Elite / Chave do Chefe / Imunidade a Runas
       if (en.dropsBossKey) {
         ctx.strokeStyle = P.gold;
+        ctx.strokeRect(drawX - 1.5, drawY - 1.5, size + 3, size + 3);
+      } else if (en.runeImmune) {
+        ctx.strokeStyle = animFrame ? P.cyan : P.violet;
         ctx.strokeRect(drawX - 1.5, drawY - 1.5, size + 3, size + 3);
       } else if (en.elite) {
         ctx.strokeStyle = P.violet;
@@ -1945,10 +2022,21 @@ window.Game8Bit = window.Game8Bit || {};
 
       if (sp) ctx.drawImage(sp, drawX, drawY, size, size);
 
-      // Congelamento visual
+      // Congelamento ou lentidão gélida visual
       if (en.statuses.freeze) {
-        ctx.fillStyle = 'rgba(180, 244, 252, 0.45)';
+        ctx.fillStyle = 'rgba(180, 244, 252, 0.48)';
         ctx.fillRect(drawX, drawY, size, size);
+      } else if (en.chillTimer > 0) {
+        ctx.fillStyle = 'rgba(116, 196, 252, 0.24)';
+        ctx.fillRect(drawX, drawY, size, size);
+      }
+
+      // Escudinho anti-runa no canto do sprite
+      if (en.runeImmune) {
+        ctx.fillStyle = P.black;
+        ctx.fillRect(drawX - 1, drawY - 1, 5, 5);
+        ctx.fillStyle = P.cyan;
+        ctx.fillRect(drawX, drawY, 3, 3);
       }
 
       // Telegrafagem de ataque (!)

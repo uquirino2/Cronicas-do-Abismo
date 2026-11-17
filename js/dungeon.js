@@ -82,11 +82,11 @@ window.Game8Bit = window.Game8Bit || {};
   }
 
   function getEntryPos(fromDir) {
-    // Posição segura do jogador ao entrar na sala vindo da direção oposta
-    if (fromDir === 'N') return { x: 12 * TILE_SIZE, y: 2.2 * TILE_SIZE };
-    if (fromDir === 'S') return { x: 12 * TILE_SIZE, y: 12.6 * TILE_SIZE };
-    if (fromDir === 'W') return { x: 2.2 * TILE_SIZE, y: 7.8 * TILE_SIZE };
-    if (fromDir === 'E') return { x: 21.8 * TILE_SIZE, y: 7.8 * TILE_SIZE };
+    // Posição segura do jogador ao entrar na sala vindo da direção oposta (folga de 2 tiles da porta)
+    if (fromDir === 'N') return { x: 12 * TILE_SIZE, y: 1.85 * TILE_SIZE };
+    if (fromDir === 'S') return { x: 12 * TILE_SIZE, y: 13.05 * TILE_SIZE };
+    if (fromDir === 'W') return { x: 1.85 * TILE_SIZE, y: 7.8 * TILE_SIZE };
+    if (fromDir === 'E') return { x: 22.15 * TILE_SIZE, y: 7.8 * TILE_SIZE };
     return { x: 12 * TILE_SIZE, y: 7.5 * TILE_SIZE };
   }
 
@@ -335,10 +335,11 @@ window.Game8Bit = window.Game8Bit || {};
 
       for (const c of coords) {
         setTile(room, c.x, c.y, tile);
-        // Garante espaço livre logo na frente da porta
-        const inX = c.x === 0 ? 1 : c.x === ROOM_W - 1 ? ROOM_W - 2 : c.x;
-        const inY = c.y === 0 ? 1 : c.y === ROOM_H - 1 ? ROOM_H - 2 : c.y;
-        setTile(room, inX, inY, TILE.FLOOR);
+        // Garante corredor livre de 2 tiles para dentro da porta (evita spawns dentro de placas/props)
+        const dx = c.x === 0 ? 1 : c.x === ROOM_W - 1 ? -1 : 0;
+        const dy = c.y === 0 ? 1 : c.y === ROOM_H - 1 ? -1 : 0;
+        setTile(room, c.x + dx, c.y + dy, TILE.FLOOR);
+        setTile(room, c.x + dx * 2, c.y + dy * 2, TILE.FLOOR);
       }
     }
   }
@@ -347,8 +348,8 @@ window.Game8Bit = window.Game8Bit || {};
     const corners = [[2, 2], [ROOM_W - 3, 2], [2, ROOM_H - 3], [ROOM_W - 3, ROOM_H - 3]];
     for (const [tx, ty] of corners) setTile(room, tx, ty, TILE.TORCH);
 
-    // Pedestal Rúnico de Reinício (garante 0 soft-locks!)
-    setTile(room, 12, 2, TILE.LORE_TABLET);
+    // Pedestal Rúnico de Reinício em posição segura no canto noroeste (nunca bloqueia portas!)
+    setTile(room, 3, 3, TILE.LORE_TABLET);
     room.hasPuzzleReset = true;
 
     const plateCount = Math.max(2, Math.min(4, diff.puzzlePlates || 2));
@@ -361,8 +362,9 @@ window.Game8Bit = window.Game8Bit || {};
         { x: 18, y: 4 },
         { x: 5, y: 10 },
         { x: 18, y: 10 },
-        { x: 12, y: 7 },
-        { x: 9, y: 5 },
+        { x: 8, y: 5 },
+        { x: 15, y: 5 },
+        { x: 9, y: 9 },
         { x: 15, y: 9 }
       ]).slice(0, stepCount);
 
@@ -376,12 +378,12 @@ window.Game8Bit = window.Game8Bit || {};
 
       const hazardTile = diff.id === 'normal' ? TILE.WATER : (diff.id === 'veteran' ? TILE.SPIKES : TILE.LAVA);
       if (diff.id !== 'normal') {
-        [[8, 7], [15, 7], [12, 4], [12, 10]].forEach(([hx, hy]) => {
+        [[8, 7], [15, 7], [11, 5], [12, 9]].forEach(([hx, hy]) => {
           if (getTile(room, hx, hy) !== TILE.PLATE) setTile(room, hx, hy, hazardTile);
         });
       }
       room.loreTitle = 'ENIGMA DE SEQUÊNCIA';
-      room.loreText = `Pise nas ${stepCount} runas na ordem numérica [1 -> ${stepCount}]. Se precisar reiniciar, aperte [E] na pedra rúnica.`;
+      room.loreText = `Pise nas ${stepCount} runas na ordem numérica [1 -> ${stepCount}]. Use [E] na pedra rúnica no canto noroeste para reiniciar.`;
     } else if (kind === 'timed') {
       const switchCount = Math.min(4, plateCount + (diff.id === 'normal' ? 1 : 0));
       const positions = [
@@ -433,7 +435,7 @@ window.Game8Bit = window.Game8Bit || {};
         setTile(room, 12, 6, TILE.SPIKES);
       }
       room.loreTitle = 'ENIGMA DOS BLOCOS';
-      room.loreText = `Empurre os ${plateCount} blocos até as placas. Travou um bloco? Aperte [E] na pedra rúnica ao norte para resetar!`;
+      room.loreText = `Empurre os ${plateCount} blocos até as placas. Travou um bloco? Aperte [E] na pedra rúnica no canto noroeste para resetar!`;
     }
   }
 
@@ -486,7 +488,7 @@ window.Game8Bit = window.Game8Bit || {};
       const frags = G.GameData.LORE_FRAGMENTS.filter(f => f.floor === ((floorNum - 1) % 6) + 1);
       const frag = frags[1] || frags[0];
       if (frag) {
-        setTile(room, 12, 3, TILE.LORE_TABLET);
+        setTile(room, 8, 5, TILE.LORE_TABLET);
         room.loreId = frag.id;
         room.loreTitle = frag.title;
         room.loreText = frag.text;
